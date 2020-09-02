@@ -1,15 +1,17 @@
 import numpy as np
-
 import requests
+import asyncio
 import discord
 import logging
 import random
+import scipy
 import cv2
 import sys
 import os
 
 
-def define_logger(name="Logger", log_level="DEBUG", combined=True, add_timestamp=True):
+def define_logger(name="Logger", log_level="DEBUG",
+                  combined=True, add_timestamp=True):
     if combined:
         file_name = "Logs.log"
     else:
@@ -68,26 +70,100 @@ class Bot(discord.Client):
         print('Logged on as {0}!'.format(self.user))
 
     async def on_message(self, message):
-        print("NewMSG: Server #'{0.guild.id}' ({0.guild.name}) by '{0.author}' at channel '{0.channel}': '{0.content}'".format(
-            message))
-        avatar_url = message.author.avatar_url
-        if avatar_url:
-            image = self.get_picture(avatar_url)
-            # image = self.morph_image_to_gray(image)
-            self.save_image(image, f"avatars/{message.author.name}.png")
+        author = message.author
+        text = message.content.lower()
+        server_id = message.guild.id
+        channel = message.channel
+
+        msg = ("Msg: '{0.guild.name}' ({0.guild.id}) by '{0.author}' "
+               "at channel '{0.channel}': '{0.content}'").format(message)
+
+        if text.startswith("!saveme"):
+            self.logger.info(msg)
+            await self.save_avatar(author.name, author.avatar_url)
+        elif text.startswith("!hello"):
+            self.logger.info(msg)
+            await channel.send('Powiedz siema!')
+        elif text.startswith("!sweeper"):
+            self.logger.info(msg)
+            arr_text = text.split(" ")
+            try:
+                if len(arr_text) == 1:
+                    size = 5
+                    bombs = None
+                elif len(arr_text) == 2:
+                    cmd, size = arr_text
+                    size = int(size)
+                    bombs = None
+                elif len(arr_text) == 3:
+                    cmd, size, bombs = arr_text
+                    size = int(size)
+                    bombs = int(bombs)
+                else:
+                    raise ValueError("Too much params")
+
+                arr = await self.generate_sweeper(size, bombs)
+                await channel.send(str(arr))
+
+            except ValueError as ve:
+                self.logger.error(f"{ve} during {msg}")
+                channel.send(f"You should specify number for this game "
+                             "(!sweeper 10) or 10 and 20 bombs")
+
+        elif author.id == self.user.id:
+            pass
+            # print(f"This is my message: {text}")
+        elif text.startswith("!"):
+            self.logger.warning(f"unkown command '{text}'")
+            await channel.send(f'what is this command: {text}? ')
+        else:
+            print(f"msg: {text}")
+
+    async def save_avatar(self, name, avatar_url):
+        image = await self.get_picture(avatar_url)
+        self.save_image(image, f"avatars/{name}.png")
 
     @staticmethod
-    def get_picture(url_pic):
+    async def generate_sweeper(size, bombs=None):
+        """Generates sweeper array with counted bombs next to given field"""
+        if size < 1:
+            size = 2
+        elif size > 50:
+            size = 50
+
+        if bombs is None or bombs < 0:
+            bombs = size * size // 8
+        fields = size * size
+        bomb_list = [1 if fi < bombs else 0 for fi in range(fields)]
+        random.shuffle(bomb_list)
+        temp_arr = np.array(bomb_list).reshape(size, size)
+        bomb_arr = np.zeros((size+2, size+2), dtype=int)
+        for rind, row in enumerate(temp_arr):
+            rind += 1
+            for cin, num in enumerate(row):
+                cin += 1
+                if num:
+                    bomb_arr[rind-1:rind+2, cin-1:cin+2] += 1
+        bomb_arr = bomb_arr[1:-1, 1:-1]
+        mask = temp_arr == 1
+        bomb_arr[mask] = -1
+        hidden_text = '\n'.join(
+            "".join(f"||`{num:^2}`||" if num >= 0 else "||:boom:||" for num in row)
+            for row in bomb_arr)
+        return hidden_text
+
+    @staticmethod
+    async def get_picture(url_pic):
         re = requests.get(url_pic)
         if re.status_code == 200:
-            re.raw = True
+            # re.raw = True
             im_bytes = re.content
             im_arr = np.frombuffer(im_bytes, np.uint8)
             image = cv2.imdecode(im_arr, cv2.IMREAD_COLOR)
             return image
-            # cv2.imwrite("pic.png", image)
         else:
-            print(f"Invalid status code when fetching picture: {re.status_code} from {url_pic}")
+            print(f"Invalid status code when fetching picture: "
+                  "{re.status_code} from {url_pic}")
 
     @staticmethod
     def morph_image_to_gray(image):
