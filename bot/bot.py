@@ -89,7 +89,7 @@ class Bot(discord.Client):
             arr_text = text.split(" ")
             try:
                 if len(arr_text) == 1:
-                    size = 5
+                    size = 7
                     bombs = None
                 elif len(arr_text) == 2:
                     cmd, size = arr_text
@@ -128,11 +128,11 @@ class Bot(discord.Client):
         """Generates sweeper array with counted bombs next to given field"""
         if size < 1:
             size = 2
-        elif size > 50:
-            size = 50
+        elif size > 14:
+            size = 14
 
         if bombs is None or bombs < 0:
-            bombs = size * size // 8
+            bombs = size * size // 5
         fields = size * size
         bomb_list = [1 if fi < bombs else 0 for fi in range(fields)]
         random.shuffle(bomb_list)
@@ -150,7 +150,9 @@ class Bot(discord.Client):
         hidden_text = '\n'.join(
             "".join(f"||`{num:^2}`||" if num >= 0 else "||:boom:||" for num in row)
             for row in bomb_arr)
-        return hidden_text
+        text = f"Sweeper game {size}x{size}, bombs: {bombs}, area in bombs: {bombs / fields*100:4.1f}%"
+        sweeper_text = f"{text}\n{hidden_text}"
+        return sweeper_text
 
     @staticmethod
     async def get_picture(url_pic):
