@@ -1,13 +1,14 @@
 import numpy as np
 import requests
 import asyncio
-import discord
 import logging
 import random
 import scipy
 import cv2
 import sys
 import os
+
+from discord.ext.commands import Bot
 
 
 def define_logger(name="Logger", log_level="DEBUG",
@@ -51,7 +52,7 @@ def define_logger(name="Logger", log_level="DEBUG",
 
     # Log Formatting
     formatter = logging.Formatter(
-        f'%(asctime)s - {name} - %(levelname)s - %(message)s')
+            f'%(asctime)s - {name} - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
     ch.setFormatter(formatter)
 
@@ -63,121 +64,122 @@ def define_logger(name="Logger", log_level="DEBUG",
     return logger
 
 
-class Bot(discord.Client):
-    logger = define_logger("Bot")
+logger = define_logger("Bot")
 
-    async def on_ready(self):
-        print('Logged on as {0}!'.format(self.user))
+bot = Bot(command_prefix='!', case_insensitive=True)
 
-    async def on_message(self, message):
-        author = message.author
-        text = message.content.lower()
-        server_id = message.guild.id
-        channel = message.channel
 
-        msg = ("Msg: '{0.guild.name}' ({0.guild.id}) by '{0.author}' "
-               "at channel '{0.channel}': '{0.content}'").format(message)
+@bot.event
+async def on_ready():
+    print(f"Logged in as {bot.user.name}")
+    # print('Logged on as {0}!'.format(self.user))
 
-        if text.startswith("!saveme"):
-            self.logger.info(msg)
-            await self.save_avatar(author.name, author.avatar_url)
-        elif text.startswith("!hello"):
-            self.logger.info(msg)
-            await channel.send('Powiedz siema!')
-        elif text.startswith("!sweeper"):
-            self.logger.info(msg)
-            arr_text = text.split(" ")
-            try:
-                if len(arr_text) == 1:
-                    size = 7
-                    bombs = None
-                elif len(arr_text) == 2:
-                    cmd, size = arr_text
-                    size = int(size)
-                    bombs = None
-                elif len(arr_text) == 3:
-                    cmd, size, bombs = arr_text
-                    size = int(size)
-                    bombs = int(bombs)
-                else:
-                    raise ValueError("Too much params")
 
-                arr = await self.generate_sweeper(size, bombs)
-                await channel.send(str(arr))
+@bot.event
+async def on_message(message):
+    await bot.process_commands(message)
 
-            except ValueError as ve:
-                self.logger.error(f"{ve} during {msg}")
-                channel.send(f"You should specify number for this game "
-                             "(!sweeper 10) or 10 and 20 bombs")
 
-        elif author.id == self.user.id:
-            pass
-            # print(f"This is my message: {text}")
-        elif text.startswith("!"):
-            self.logger.warning(f"unkown command '{text}'")
-            await channel.send(f'what is this command: {text}? ')
-        else:
-            print(f"msg: {text}")
+@bot.command(name="saveme")
+async def save_avatar(ctx):
+    avatar_url = ctx.author.avatar_url
+    name = ctx.author.name
 
-    async def save_avatar(self, name, avatar_url):
-        image = await self.get_picture(avatar_url)
-        self.save_image(image, f"avatars/{name}.png")
+    image = await get_picture(avatar_url)
+    save_image(image, f"avatars/{name}.png")
 
-    @staticmethod
-    async def generate_sweeper(size, bombs=None):
-        """Generates sweeper array with counted bombs next to given field"""
-        if size < 1:
-            size = 2
-        elif size > 14:
-            size = 14
 
-        if bombs is None or bombs < 0:
-            bombs = size * size // 5
-        fields = size * size
-        bomb_list = [1 if fi < bombs else 0 for fi in range(fields)]
-        random.shuffle(bomb_list)
-        temp_arr = np.array(bomb_list).reshape(size, size)
-        bomb_arr = np.zeros((size+2, size+2), dtype=int)
-        for rind, row in enumerate(temp_arr):
-            rind += 1
-            for cin, num in enumerate(row):
-                cin += 1
-                if num:
-                    bomb_arr[rind-1:rind+2, cin-1:cin+2] += 1
-        bomb_arr = bomb_arr[1:-1, 1:-1]
-        mask = temp_arr == 1
-        bomb_arr[mask] = -1
-        hidden_text = '\n'.join(
+@bot.event
+async def on_command_error(ctx, command):
+    logger.warning(f"Not found cmd: '{command}' at {ctx.guild} ({ctx.guild.id})")
+    # await ctx.send(f"What is this: !{command} ?")
+
+
+@bot.command()
+async def sweeper(ctx, *arr):
+    """Generates sweeper array with counted bombs next to given field"""
+    logger.debug(f"sweeper args: {arr}")
+    if len(arr) == 0:
+        size = 7
+        bombs = None
+    elif len(arr) == 1:
+        size = arr[0]
+        size = int(size)
+        bombs = None
+    elif len(arr) == 2:
+        size, bombs = arr
+        size = int(size)
+        bombs = int(bombs)
+    else:
+        logger.error(f"Sweeper args does not match{arr}")
+        return 0
+
+    "Check table size, 2k characters limit"
+    if size < 1:
+        size = 2
+    elif size > 13:
+        size = 13
+
+    "Check bomb ammount"
+    fields = size * size
+    if bombs is None or bombs < 0:
+        bombs = size * size // 3.5
+    elif bombs >= fields:
+        bombs = fields - 1
+
+    bomb_list = [1 if fi < bombs else 0 for fi in range(fields)]
+    random.shuffle(bomb_list)
+    temp_arr = np.array(bomb_list).reshape(size, size)
+    bomb_arr = np.zeros((size + 2, size + 2), dtype=int)
+    for rind, row in enumerate(temp_arr):
+        rind += 1
+        for cin, num in enumerate(row):
+            cin += 1
+            if num:
+                bomb_arr[rind - 1:rind + 2, cin - 1:cin + 2] += 1
+        await asyncio.sleep(0.01)
+
+    bomb_arr = bomb_arr[1:-1, 1:-1]
+    mask = temp_arr == 1
+    bomb_arr[mask] = -1
+    hidden_text = '\n'.join(
             "".join(f"||`{num:^2}`||" if num >= 0 else "||:boom:||" for num in row)
             for row in bomb_arr)
-        text = f"Sweeper game {size}x{size}, bombs: {bombs}, area in bombs: {bombs / fields*100:4.1f}%"
-        sweeper_text = f"{text}\n{hidden_text}"
-        return sweeper_text
+    text = f"Sweeper {size}x{size}, bombs: {bombs:.0f}  ({bombs / fields * 100:.0f}%)"
+    sweeper_text = f"{text}\n{hidden_text}"
+    logger.debug(f"Sweeper msg len: {len(sweeper_text)}")
+    await ctx.send(sweeper_text)
 
-    @staticmethod
-    async def get_picture(url_pic):
-        re = requests.get(url_pic)
-        if re.status_code == 200:
-            # re.raw = True
-            im_bytes = re.content
-            im_arr = np.frombuffer(im_bytes, np.uint8)
-            image = cv2.imdecode(im_arr, cv2.IMREAD_COLOR)
-            return image
-        else:
-            print(f"Invalid status code when fetching picture: "
-                  "{re.status_code} from {url_pic}")
 
-    @staticmethod
-    def morph_image_to_gray(image):
-        """Converts rgb image to gray"""
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+@bot.command()
+async def test(ctx, arg=None):
+    logger.debug("Testing!")
+    await ctx.channel.send("testing")
+
+
+async def get_picture(url_pic):
+    re = requests.get(url_pic)
+    if re.status_code == 200:
+        # re.raw = True
+        im_bytes = re.content
+        im_arr = np.frombuffer(im_bytes, np.uint8)
+        image = cv2.imdecode(im_arr, cv2.IMREAD_COLOR)
         return image
+    else:
+        print(f"Invalid status code when fetching picture: "
+              "{re.status_code} from {url_pic}")
 
-    @staticmethod
-    def save_image(image, path):
-        path = os.path.abspath(path)
-        Bot.logger.debug(f"Saving image to: {path}")
-        cv2.imwrite(path, image)
+
+def morph_image_to_gray(image):
+    """Converts rgb image to gray"""
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    return image
+
+
+def save_image(image, path):
+    path = os.path.abspath(path)
+    logger.debug(f"Saving image to: {path}")
+    cv2.imwrite(path, image)
 
 
 if __name__ == "__main__":
@@ -188,8 +190,6 @@ if __name__ == "__main__":
         print(f"{e}")
         sys.exit(1)
 
-    # CONFIG =
     os.makedirs("avatars", exist_ok=True)
-    bot = Bot()
     bot.run(token)
     # 470285521 # permission int
