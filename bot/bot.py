@@ -8,7 +8,7 @@ import cv2
 import sys
 import os
 
-from discord.ext.commands import Bot
+from discord.ext.commands import Bot, check
 
 
 def define_logger(name="Logger", log_level="DEBUG",
@@ -52,7 +52,7 @@ def define_logger(name="Logger", log_level="DEBUG",
 
     # Log Formatting
     formatter = logging.Formatter(
-            f'%(asctime)s - {name} - %(levelname)s - %(message)s')
+        f'%(asctime)s - {name} - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
     ch.setFormatter(formatter)
 
@@ -62,6 +62,13 @@ def define_logger(name="Logger", log_level="DEBUG",
     logger.propagate = False
 
     return logger
+
+
+def not_priv(ctx):
+    if ctx.guild:
+        return True
+    else:
+        return False
 
 
 logger = define_logger("Bot")
@@ -91,8 +98,32 @@ async def save_avatar(ctx):
 
 @bot.event
 async def on_command_error(ctx, command):
-    logger.warning(f"Not found cmd: '{command}' at {ctx.guild} ({ctx.guild.id})")
+    logger.warning(f"Warn: '{command}', server: '{ctx.guild}'")
     # await ctx.send(f"What is this: !{command} ?")
+
+
+@bot.command()
+@check(not_priv)
+async def countdown(ctx, num=10):
+    try:
+        num = int(num)
+        if num > 60:
+            num = 60
+        elif num < 1:
+            num = 1
+
+    except ValueError as ve:
+        logger.error(f"Coundown incorrect arg: {num}")
+        num = 5
+
+    # chid = 750696820736393261
+    channel = ctx.channel
+    msg_countdown = await channel.send(f"Time left: {num}")
+    for x in range(num-1, -1, -1):
+        text = f"Time left: {x}"
+        await msg_countdown.edit(content=text)
+        await asyncio.sleep(0.8)
+    await msg_countdown.delete()
 
 
 @bot.command()
@@ -117,8 +148,8 @@ async def sweeper(ctx, *arr):
     "Check table size, 2k characters limit"
     if size < 1:
         size = 2
-    elif size > 13:
-        size = 13
+    elif size > 14:
+        size = 14
 
     "Check bomb ammount"
     fields = size * size
@@ -143,11 +174,11 @@ async def sweeper(ctx, *arr):
     mask = temp_arr == 1
     bomb_arr[mask] = -1
     hidden_text = '\n'.join(
-            "".join(f"||`{num:^2}`||" if num >= 0 else "||:boom:||" for num in row)
-            for row in bomb_arr)
+        "".join(f"||`{num:^2}`||" if num >= 0 else f"||`{'X':^2}`||" for num in row)
+        for row in bomb_arr)
     text = f"Sweeper {size}x{size}, bombs: {bombs:.0f}  ({bombs / fields * 100:.0f}%)"
     sweeper_text = f"{text}\n{hidden_text}"
-    logger.debug(f"Sweeper msg len: {len(sweeper_text)}")
+    logger.debug(f"{sweeper_text}")
     await ctx.send(sweeper_text)
 
 
