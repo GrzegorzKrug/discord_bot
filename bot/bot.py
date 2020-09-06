@@ -52,7 +52,7 @@ def define_logger(name="Logger", log_level="DEBUG",
 
     # Log Formatting
     formatter = logging.Formatter(
-        f'%(asctime)s - {name} - %(levelname)s - %(message)s')
+            f'%(asctime)s - {name} - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
     ch.setFormatter(formatter)
 
@@ -119,7 +119,7 @@ async def countdown(ctx, num=10):
     # chid = 750696820736393261
     channel = ctx.channel
     msg_countdown = await channel.send(f"Time left: {num}")
-    for x in range(num-1, -1, -1):
+    for x in range(num - 1, -1, -1):
         text = f"Time left: {x}"
         await msg_countdown.edit(content=text)
         await asyncio.sleep(0.8)
@@ -174,8 +174,8 @@ async def sweeper(ctx, *arr):
     mask = temp_arr == 1
     bomb_arr[mask] = -1
     hidden_text = '\n'.join(
-        "".join(f"||`{num:^2}`||" if num >= 0 else f"||`{'X':^2}`||" for num in row)
-        for row in bomb_arr)
+            "".join(f"||`{num:^2}`||" if num >= 0 else f"||`{'X':^2}`||" for num in row)
+            for row in bomb_arr)
     text = f"Sweeper {size}x{size}, bombs: {bombs:.0f}  ({bombs / fields * 100:.0f}%)"
     sweeper_text = f"{text}\n{hidden_text}"
     logger.debug(f"{sweeper_text}")
