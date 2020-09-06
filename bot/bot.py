@@ -9,6 +9,7 @@ import sys
 import os
 
 from discord.ext.commands import Bot, check
+from collections import namedtuple
 
 
 def define_logger(name="Logger", log_level="DEBUG",
@@ -48,7 +49,9 @@ def define_logger(name="Logger", log_level="DEBUG",
                                  mode='a')
 
     ch = logging.StreamHandler()
-    ch.setLevel("INFO")
+
+    # LEVEL
+    fh.setLevel("INFO")
 
     # Log Formatting
     formatter = logging.Formatter(
@@ -62,6 +65,46 @@ def define_logger(name="Logger", log_level="DEBUG",
     logger.propagate = False
 
     return logger
+
+
+def advanced_args(fun):
+    """
+    Decorator that translates args to create flags and converts string into kwargs.
+    Args:
+        fun:
+
+    Returns:
+        object returned by calling given function with params
+    """
+
+    async def wrapper(ctx, *args):
+        good_args = list()
+        force = False
+        dry = False
+        kwargs = {}
+
+        for arg in args:
+            if arg.startswith("-f"):
+                force = True
+            elif arg.startswith("-d"):
+                dry = True
+            elif arg.startswith("-"):
+                logger.warning(f"unkown argument: {arg}")
+            elif "=" in arg:
+                key, val = arg.split("=")
+                if key == "force" or key == "dry":
+                    continue
+                if key and val:
+                    kwargs.update({key: val})
+            else:
+                good_args.append(arg)
+
+        good_args = tuple(good_args)
+        output = await fun(ctx, *good_args, **kwargs, force=force, dry=dry)
+        return output
+
+    wrapper.__name__ = fun.__name__
+    return wrapper
 
 
 def not_priv(ctx):
@@ -97,9 +140,19 @@ async def save_avatar(ctx):
 
 
 @bot.event
-async def on_command_error(ctx, command):
-    logger.warning(f"Warn: '{command}', server: '{ctx.guild}'")
-    # await ctx.send(f"What is this: !{command} ?")
+async def on_command_error(ctx, command_error):
+    text = ctx.message.content
+    text_error = str(command_error)
+    server = "private_message" if not ctx.guild else f"{ctx.guild} ({ctx.guild.id})"
+
+    if text_error.startswith("The check functions for command"):
+        logger.warning(f"No permission: '{text}', server: '{server}'")
+
+    elif text_error.endswith("is not found"):
+        logger.warning(f"Command not found: '{text}', server: '{server}'")
+
+    else:
+        logger.error(f"Unpredicted Error:'{command_error}', server: '{server}'")
 
 
 @bot.command()
@@ -183,9 +236,20 @@ async def sweeper(ctx, *arr):
 
 
 @bot.command()
-async def test(ctx, arg=None):
-    logger.debug("Testing!")
-    await ctx.channel.send("testing")
+@advanced_args
+async def test(ctx, *args, dry=False, force=False, **kwargs):
+    logger.debug("Test 1 ok ?")
+    await ctx.channel.send("Test 1 ok ?")
+    await ctx.channel.send(f"args: {args}")
+    await ctx.channel.send(f"kwargs: {kwargs}")
+
+
+@bot.command()
+@advanced_args
+async def test2(ctx, *args, dry=False, force=False, **kwargs):
+    await ctx.channel.send("Test 2 ok ?")
+    await ctx.channel.send(f"args: {args}")
+    await ctx.channel.send(f"kwargs: {kwargs}")
 
 
 async def get_picture(url_pic):
