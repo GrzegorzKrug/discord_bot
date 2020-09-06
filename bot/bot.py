@@ -8,7 +8,7 @@ import cv2
 import sys
 import os
 
-from discord.ext.commands import Bot, check
+from discord.ext.commands import Bot, check, CommandError
 from collections import namedtuple
 
 
@@ -79,16 +79,22 @@ def advanced_args(fun):
 
     async def wrapper(ctx, *args):
         good_args = list()
-        force = False
-        dry = False
-        kwargs = {}
+        # force = False
+        # dry = False
+        kwargs = {"force": False, "dry": False, "sudo": False}
 
         for arg in args:
             if arg.startswith("-f"):
-                force = True
+                "force, enforce parameters"
+                kwargs['force'] = True
             elif arg.startswith("-d"):
-                dry = True
+                "dry run"
+                kwargs['dry'] = True
+            elif arg.startswith("-s") or arg.startswith("-a"):
+                "sudo or admin"
+                kwargs['sudo'] = True
             elif arg.startswith("-"):
+                "drop unkown parameters"
                 logger.warning(f"unkown argument: {arg}")
             elif "=" in arg:
                 key, val = arg.split("=")
@@ -100,14 +106,31 @@ def advanced_args(fun):
                 good_args.append(arg)
 
         good_args = tuple(good_args)
-        output = await fun(ctx, *good_args, **kwargs, force=force, dry=dry)
+        output = await fun(ctx, *good_args, **kwargs)
         return output
 
     wrapper.__name__ = fun.__name__
     return wrapper
 
 
-def not_priv(ctx):
+def advanced_perm_check(checking_fun):
+    def decorator(fun):
+        async def f(ctx, *args, sudo=False, **kwargs):
+            if sudo or checking_fun(ctx, *args, **kwargs):
+                output = await fun(ctx, *args, **kwargs)
+                return output
+            else:
+                raise CommandError("No permission")
+
+        f.__name__ = fun.__name__
+        return f
+
+    # check_wrapper.__name__ = check_wrapper.wrapper.__name__
+    # decorator.__name__ = decorator.f.__name__
+    return decorator
+
+
+def not_priv(ctx, *args, **kwargs):
     if ctx.guild:
         return True
     else:
@@ -142,41 +165,47 @@ async def save_avatar(ctx):
 @bot.event
 async def on_command_error(ctx, command_error):
     text = ctx.message.content
+    invoked = ctx.invoked_with
     text_error = str(command_error)
     server = "private_message" if not ctx.guild else f"{ctx.guild} ({ctx.guild.id})"
 
-    if text_error.startswith("The check functions for command"):
+    if text_error.startswith("The check functions for command") or text_error.startswith("No permission"):
         logger.warning(f"No permission: '{text}', server: '{server}'")
+        await ctx.channel.send(f"Some permissions do not allow it to run here '{invoked}'")
 
     elif text_error.endswith("is not found"):
         logger.warning(f"Command not found: '{text}', server: '{server}'")
 
     else:
-        logger.error(f"Unpredicted Error:'{command_error}', server: '{server}'")
+        logger.error(f"Unpredicted Error: '{command_error}, cmd: {text}', server: '{server}'")
 
 
 @bot.command()
-@check(not_priv)
-async def countdown(ctx, num=10):
+@advanced_args
+@advanced_perm_check(not_priv)
+async def countdown(ctx, num=10, dry=False, force=False, **kwargs):
     try:
         num = int(num)
-        if num > 60:
+        if num > 60 and not force:
             num = 60
-        elif num < 1:
+        if num < 1:
             num = 1
 
     except ValueError as ve:
-        logger.error(f"Coundown incorrect arg: {num}")
+        logger.error(f"Countdown incorrect arg: {num}")
         num = 5
 
     # chid = 750696820736393261
     channel = ctx.channel
-    msg_countdown = await channel.send(f"Time left: {num}")
-    for x in range(num - 1, -1, -1):
-        text = f"Time left: {x}"
-        await msg_countdown.edit(content=text)
-        await asyncio.sleep(0.8)
-    await msg_countdown.delete()
+    if not dry:
+        msg_countdown = await channel.send(f"Time left: {num}")
+        for x in range(num - 1, -1, -1):
+            text = f"Time left: {x}"
+            await msg_countdown.edit(content=text)
+            await asyncio.sleep(0.2)
+        await msg_countdown.delete()
+    else:
+        await channel.send(f"Countdown of {num}, will delete this dryrun message....", delete_after=10)
 
 
 @bot.command()
