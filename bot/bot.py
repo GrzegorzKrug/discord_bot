@@ -55,7 +55,7 @@ def define_logger(name="Logger", log_level="DEBUG",
 
     # Log Formatting
     formatter = logging.Formatter(
-            f'%(asctime)s - {name} - %(levelname)s - %(message)s')
+            f'%(asctime)s -{name}- %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
     ch.setFormatter(formatter)
 
@@ -86,7 +86,7 @@ def advanced_args(fun):
         fun:
 
     Returns:
-        object returned by calling given function with given params
+        message object returned by calling given function with given params
     """
 
     async def wrapper(ctx, *args, **kwargs):
@@ -107,8 +107,12 @@ def advanced_args(fun):
                 "sudo or admin"
                 kwargs['sudo'] = True
             elif arg.startswith("-"):
-                "drop unkown parameters"
-                logger.warning(f"unkown argument: {arg}")
+                try:
+                    var = float(arg)
+                    good_args.append(arg)
+                except ValueError:
+                    "drop unknown parameters"
+                    logger.warning(f"unknown argument: {arg}")
             elif "=" in arg:
                 key, val = arg.split("=")
                 if key == "force" or key == "dry":
@@ -126,6 +130,16 @@ def advanced_args(fun):
     return wrapper
 
 
+def check_sudo_permission(ctx):
+    logger.critical(f"NotImplemented, sudo is not checking permission yet")
+    return False
+
+
+def check_force_permission(ctx):
+    logger.critical(f"NotImplemented, force is not checking permission yet")
+    return False
+
+
 def advanced_perm_check(*checking_funs):
     """
     Check channels and permissions, use -s -sudo or -a -admin to run it.
@@ -137,13 +151,13 @@ def advanced_perm_check(*checking_funs):
     """
 
     def decorator(fun):
-        # if fun.__name__ == "advanced_args":
-        print(fun.__name__)
-
         @advanced_args
-        async def f(ctx, *args, sudo=False, **kwargs):
-            if sudo or all(chk_f(ctx, *args, **kwargs) for chk_f in checking_funs):
-                output = await fun(ctx, *args, **kwargs)
+        async def f(ctx, *args, sudo=False, force=False, **kwargs):
+            if sudo and check_sudo_permission(ctx) or all(chk_f(ctx, *args, **kwargs) for chk_f in checking_funs):
+                if force:
+                    force = check_force_permission(ctx)
+
+                output = await fun(ctx, force=force, *args, **kwargs)
                 return output
             else:
                 raise CommandError("No permission")
@@ -173,7 +187,7 @@ async def on_message(message):
 
 def delete_call(fun):
     """
-    Decorator that removes message which triggered command
+    Decorator that removes message which triggered command.
     Args:
         fun:
 
@@ -198,6 +212,7 @@ def delete_call(fun):
 def trash_after(timeout=600):
     """
     Decorator, that remove message after given time.
+    Decorated function must return message!
     Args:
         timeout: Integer, default 600
 
@@ -249,6 +264,42 @@ async def test(ctx, *args, dry=False, force=False, **kwargs):
 
 
 @bot.command()
+@advanced_perm_check()
+@delete_call
+async def purge_all(ctx, num=1, *args, **kwargs):
+    channel = ctx.channel
+    num = int(num)
+
+    def is_me(m):
+        return True
+
+    logger.info(f"Removing {num} messages in {ctx.channel}: {ctx.guild}")
+    await channel.purge(limit=num, check=is_me)
+
+
+@bot.command()
+@advanced_perm_check()
+@delete_call
+async def purge_bot(ctx, num=1, *args, **kwargs):
+    channel = ctx.channel
+    num = int(num)
+
+    def is_me(m):
+        return m.author.id == bot.user.id
+
+    logger.info(f"Removing {num} bot messages in {ctx.channel}: {ctx.guild}")
+    await channel.purge(limit=num, check=is_me)
+
+
+@bot.command()
+async def spam(ctx, num=1, *args):
+    num = int(num)
+    for x in range(num):
+        await ctx.channel.send(x + 1)
+        await asyncio.sleep(0.01)
+
+
+@bot.command()
 @delete_call
 async def react(ctx, *args, **kwargs):
     message = await ctx.channel.send("React here")
@@ -261,8 +312,9 @@ async def react(ctx, *args, **kwargs):
 
     def check_reaction(reaction, user):
         print(f"New reaction: {reaction}")
-        return user == ctx.message.author and str(reaction.emoji) == '⛔'
+        return user == ctx.message.author and message.id == reaction.message.id and reaction.emoji == "⛔"
 
+    # message.ree
     try:
         reaction, user = await bot.wait_for('reaction_add', check=check_reaction, timeout=600)
     except asyncio.TimeoutError:
@@ -294,19 +346,30 @@ async def on_command_error(ctx, command_error):
 
     elif text_error.endswith("is not found"):
         logger.warning(f"Command not found: '{text}', server: '{server}'")
+        await ctx.message.add_reaction("❓")
+        # await asyncio.sleep(10)
+        # await ctx.message.clear_reaction("❓")
 
     else:
         logger.error(f"Unpredicted Error: '{command_error}, cmd: {text}', server: '{server}'")
 
 
 @bot.command()
-@advanced_perm_check(not_priv)
+async def hello(ctx, *args):
+    pool = ["Hello there {0}", "How is it going today {0} ?", "What's up {0}?", "Hey {0}",
+            "Hi {0}, do you feel well today?", "Good day {0}"]
+    text = random.sample(pool, 1)[0]
+    await ctx.send(text.format(ctx.message.author.name))
+
+
+@bot.command()
 @delete_call
+@advanced_perm_check(not_priv)
 async def countdown(ctx, num=10, dry=False, force=False, **kwargs):
     try:
         num = int(num)
-        if num > 60 and not force:
-            num = 60
+        if num > 30 and not force:
+            num = 30
         if num < 1:
             num = 1
 
@@ -328,22 +391,23 @@ async def countdown(ctx, num=10, dry=False, force=False, **kwargs):
 
 @bot.command()
 @delete_call
-async def sweeper(ctx, *arr):
-    """Generates sweeper array with counted bombs next to given field"""
-    logger.debug(f"sweeper args: {arr}")
-    if len(arr) == 0:
+@trash_after()
+async def sweeper(ctx, *args):
+    """Generates sweeper argsay with counted bombs next to given field"""
+    logger.debug(f"sweeper args: {args}")
+    if len(args) == 0:
         size = 7
         bombs = None
-    elif len(arr) == 1:
-        size = arr[0]
+    elif len(args) == 1:
+        size = args[0]
         size = int(size)
         bombs = None
-    elif len(arr) == 2:
-        size, bombs = arr
+    elif len(args) == 2:
+        size, bombs = args
         size = int(size)
         bombs = int(bombs)
     else:
-        logger.error(f"Sweeper args does not match{arr}")
+        logger.error(f"Sweeper args does not match{args}")
         return 0
 
     "Check table size, 2k characters limit"
@@ -380,12 +444,13 @@ async def sweeper(ctx, *arr):
     text = f"Sweeper {size}x{size}, bombs: {bombs:.0f}  ({bombs / fields * 100:.0f}%)"
     sweeper_text = f"{text}\n{hidden_text}"
     logger.debug(f"{sweeper_text}")
-    await ctx.send(sweeper_text)
+    message = await ctx.send(sweeper_text)
+    return message
 
 
 @bot.command()
-@advanced_args
-async def test2(ctx, *args, dry=False, force=False, **kwargs):
+@advanced_perm_check()
+async def test2(ctx, *args, **kwargs):
     await ctx.channel.send("Test 2 ok ?")
     await ctx.channel.send(f"args: {args}")
     await ctx.channel.send(f"kwargs: {kwargs}")
