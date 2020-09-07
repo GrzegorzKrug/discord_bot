@@ -67,6 +67,18 @@ def define_logger(name="Logger", log_level="DEBUG",
     return logger
 
 
+def not_priv(ctx, *args, **kwargs):
+    if ctx.guild:
+        return True
+    else:
+        return False
+
+
+logger = define_logger("Bot")
+
+bot = Bot(command_prefix='!', case_insensitive=True)
+
+
 def advanced_args(fun):
     """
     Decorator that translates args to create flags and converts string into kwargs.
@@ -77,11 +89,12 @@ def advanced_args(fun):
         object returned by calling given function with given params
     """
 
-    async def wrapper(ctx, *args):
+    async def wrapper(ctx, *args, **kwargs):
         good_args = list()
         # force = False
         # dry = False
-        kwargs = {"force": False, "dry": False, "sudo": False}
+        if not kwargs:
+            kwargs = {"force": False, "dry": False, "sudo": False}
 
         for arg in args:
             if arg.startswith("-f"):
@@ -113,16 +126,32 @@ def advanced_args(fun):
     return wrapper
 
 
-def not_priv(ctx, *args, **kwargs):
-    if ctx.guild:
-        return True
-    else:
-        return False
+def advanced_perm_check(*checking_funs):
+    """
+    Check channels and permissions, use -s -sudo or -a -admin to run it.
+    Args:
+        *checking_funs:
 
+    Returns:
+        message object returned by calling given function with given params
+    """
 
-logger = define_logger("Bot")
+    def decorator(fun):
+        # if fun.__name__ == "advanced_args":
+        print(fun.__name__)
 
-bot = Bot(command_prefix='!', case_insensitive=True)
+        @advanced_args
+        async def f(ctx, *args, sudo=False, **kwargs):
+            if sudo or all(chk_f(ctx, *args, **kwargs) for chk_f in checking_funs):
+                output = await fun(ctx, *args, **kwargs)
+                return output
+            else:
+                raise CommandError("No permission")
+
+        f.__name__ = fun.__name__
+        return f
+
+    return decorator
 
 
 @bot.event
@@ -134,6 +163,12 @@ async def on_ready():
 @bot.event
 async def on_message(message):
     await bot.process_commands(message)
+
+
+# @bot.event
+# async def activity():
+#     print("activated")
+#     pass
 
 
 def delete_call(fun):
@@ -158,36 +193,6 @@ def delete_call(fun):
 
     wrapper.__name__ = fun.__name__
     return wrapper
-
-
-# @bot.event
-# async def activity():
-#     print("activated")
-#     pass
-
-
-def advanced_perm_check(*checking_funs):
-    """
-    Check channels and permissions, use -s -sudo or -a -admin to run it.
-    Args:
-        *checking_funs:
-
-    Returns:
-        message object returned by calling given function with given params
-    """
-
-    def decorator(fun):
-        async def f(ctx, *args, sudo=False, **kwargs):
-            if sudo or all(chk_f(ctx, *args, **kwargs) for chk_f in checking_funs):
-                output = await fun(ctx, *args, **kwargs)
-                return output
-            else:
-                raise CommandError("No permission")
-
-        f.__name__ = fun.__name__
-        return f
-
-    return decorator
 
 
 def trash_after(timeout=600):
@@ -295,8 +300,8 @@ async def on_command_error(ctx, command_error):
 
 
 @bot.command()
-@advanced_args
 @advanced_perm_check(not_priv)
+@delete_call
 async def countdown(ctx, num=10, dry=False, force=False, **kwargs):
     try:
         num = int(num)
