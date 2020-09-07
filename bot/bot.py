@@ -74,7 +74,7 @@ def advanced_args(fun):
         fun:
 
     Returns:
-        object returned by calling given function with params
+        object returned by calling given function with given params
     """
 
     async def wrapper(ctx, *args):
@@ -113,23 +113,6 @@ def advanced_args(fun):
     return wrapper
 
 
-def advanced_perm_check(checking_fun):
-    def decorator(fun):
-        async def f(ctx, *args, sudo=False, **kwargs):
-            if sudo or checking_fun(ctx, *args, **kwargs):
-                output = await fun(ctx, *args, **kwargs)
-                return output
-            else:
-                raise CommandError("No permission")
-
-        f.__name__ = fun.__name__
-        return f
-
-    # check_wrapper.__name__ = check_wrapper.wrapper.__name__
-    # decorator.__name__ = decorator.f.__name__
-    return decorator
-
-
 def not_priv(ctx, *args, **kwargs):
     if ctx.guild:
         return True
@@ -153,6 +136,136 @@ async def on_message(message):
     await bot.process_commands(message)
 
 
+def delete_call(fun):
+    """
+    Decorator that removes message which triggered command
+    Args:
+        fun:
+
+    Returns:
+        message object returned by calling given function with given params
+    """
+
+    async def wrapper(ctx, *args, **kwargs):
+
+        try:
+            await ctx.message.delete()
+        except Exception as pe:
+            logger.error(f"Permission error: {pe}")
+
+        result = await fun(ctx, *args, **kwargs)
+        return result
+
+    wrapper.__name__ = fun.__name__
+    return wrapper
+
+
+# @bot.event
+# async def activity():
+#     print("activated")
+#     pass
+
+
+def advanced_perm_check(*checking_funs):
+    """
+    Check channels and permissions, use -s -sudo or -a -admin to run it.
+    Args:
+        *checking_funs:
+
+    Returns:
+        message object returned by calling given function with given params
+    """
+
+    def decorator(fun):
+        async def f(ctx, *args, sudo=False, **kwargs):
+            if sudo or all(chk_f(ctx, *args, **kwargs) for chk_f in checking_funs):
+                output = await fun(ctx, *args, **kwargs)
+                return output
+            else:
+                raise CommandError("No permission")
+
+        f.__name__ = fun.__name__
+        return f
+
+    return decorator
+
+
+def trash_after(timeout=600):
+    """
+    Decorator, that remove message after given time.
+    Args:
+        timeout: Integer, default 600
+
+    Returns:
+        message object returned by calling given function with given params
+
+
+    """
+
+    def function(fun):
+        async def wrapper(ctx, *args, **kwargs):
+
+            message = await fun(ctx, *args, **kwargs)
+
+            await message.add_reaction("❎")
+            await asyncio.sleep(0.1)
+
+            def check_reaction(reaction, user):
+                return user == ctx.message.author \
+                       and str(reaction.emoji) == '❎' \
+                       and reaction.message.id == message.id
+
+            try:
+                if timeout < 1:
+                    tm = 30
+                else:
+                    tm = timeout
+                reaction, user = await bot.wait_for('reaction_add',
+                                                    check=check_reaction,
+                                                    timeout=tm)
+            except asyncio.TimeoutError:
+                pass
+
+            await message.delete()
+
+        wrapper.__name__ = fun.__name__
+        return wrapper
+
+    return function
+
+
+@bot.command()
+@trash_after()
+@delete_call
+async def test(ctx, *args, dry=False, force=False, **kwargs):
+    logger.debug("Test 1 ok ?")
+    message = await ctx.channel.send("Test 1 ok ?")
+    return message
+
+
+@bot.command()
+@delete_call
+async def react(ctx, *args, **kwargs):
+    message = await ctx.channel.send("React here")
+    await message.add_reaction("✅")
+    await message.add_reaction("❎")
+    await message.add_reaction("♻")
+    await message.add_reaction("🚫")
+    await message.add_reaction("⛔")
+    await asyncio.sleep(0.1)
+
+    def check_reaction(reaction, user):
+        print(f"New reaction: {reaction}")
+        return user == ctx.message.author and str(reaction.emoji) == '⛔'
+
+    try:
+        reaction, user = await bot.wait_for('reaction_add', check=check_reaction, timeout=600)
+    except asyncio.TimeoutError:
+        pass
+
+    await message.delete()
+
+
 @bot.command(name="saveme")
 async def save_avatar(ctx):
     avatar_url = ctx.author.avatar_url
@@ -171,6 +284,7 @@ async def on_command_error(ctx, command_error):
 
     if text_error.startswith("The check functions for command") or text_error.startswith("No permission"):
         logger.warning(f"No permission: '{text}', server: '{server}'")
+        await ctx.message.add_reaction("⛔")
         await ctx.channel.send(f"Some permissions do not allow it to run here '{invoked}'")
 
     elif text_error.endswith("is not found"):
@@ -202,13 +316,13 @@ async def countdown(ctx, num=10, dry=False, force=False, **kwargs):
         for x in range(num - 1, -1, -1):
             text = f"Time left: {x}"
             await msg_countdown.edit(content=text)
-            await asyncio.sleep(0.2)
         await msg_countdown.delete()
     else:
         await channel.send(f"Countdown of {num}, will delete this dryrun message....", delete_after=10)
 
 
 @bot.command()
+@delete_call
 async def sweeper(ctx, *arr):
     """Generates sweeper array with counted bombs next to given field"""
     logger.debug(f"sweeper args: {arr}")
@@ -262,15 +376,6 @@ async def sweeper(ctx, *arr):
     sweeper_text = f"{text}\n{hidden_text}"
     logger.debug(f"{sweeper_text}")
     await ctx.send(sweeper_text)
-
-
-@bot.command()
-@advanced_args
-async def test(ctx, *args, dry=False, force=False, **kwargs):
-    logger.debug("Test 1 ok ?")
-    await ctx.channel.send("Test 1 ok ?")
-    await ctx.channel.send(f"args: {args}")
-    await ctx.channel.send(f"kwargs: {kwargs}")
 
 
 @bot.command()
