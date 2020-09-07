@@ -67,7 +67,7 @@ def define_logger(name="Logger", log_level="DEBUG",
     return logger
 
 
-def not_priv(ctx, *args, **kwargs):
+def is_not_priv(ctx, *args, **kwargs):
     if ctx.guild:
         return True
     else:
@@ -263,7 +263,7 @@ async def test(ctx, *args, dry=False, force=False, **kwargs):
     return message
 
 
-@bot.command()
+@bot.command(aliases=['purge'])
 @advanced_perm_check()
 @delete_call
 async def purge_all(ctx, num=1, *args, **kwargs):
@@ -292,7 +292,141 @@ async def purge_bot(ctx, num=1, *args, **kwargs):
 
 
 @bot.command()
-async def spam(ctx, num=1, *args):
+@advanced_perm_check(is_not_priv)
+async def slipper(ctx, dim=10, *args, **kwargs):
+    game_controls = ['⬅️', '➡', '⬆️', '⬇️', '🔁']
+    translate = {'⬅️': 'left', '➡': 'right', '⬆️': 'up', '⬇️': 'down', '🔁': 'restart'}
+    message = await ctx.send("Let's start the game.")
+    game_num = 0
+    DIM = int(dim)
+    DIM = 5 if DIM < 2 else DIM
+
+    while True and game_num < 5:
+        game_num += 1
+        restart = False
+        position = (0, 0)
+        win_position = (DIM - 1, DIM - 1)
+
+        board_of_string = slipper_empty_board(DIM)
+        board_of_string[0:2, 0:2] = 0
+        board_of_string[-2:, -2:] = 0
+
+        board_of_string = np.array(board_of_string, dtype='str')
+        board_of_string[-1, -1] = "O"
+
+        draw_board = board_of_string.copy()
+        draw_board[position] = "x"
+        await message.edit(content=board_to_monotext(draw_board, ones='#', zeros='.'))
+
+        for react in game_controls:
+            await message.add_reaction(react)
+            await asyncio.sleep(0.01)
+
+        def check_reaction(reaction, user):
+            return user == ctx.message.author \
+                   and str(reaction.emoji) in game_controls \
+                   and reaction.message.id == message.id
+
+        moves = 100
+        while True and moves > 0:
+            await asyncio.sleep(0.01)
+            valid_move = False
+            win = False
+            moves -= 1
+            try:
+                reaction, user = await bot.wait_for('reaction_add', timeout=60, check=check_reaction)
+            except asyncio.TimeoutError:
+                game_over = message.content + f"\nTimeout, you lost {ctx.message.author.name}"
+                await message.edit(content=game_over)
+                return message
+
+            await message.remove_reaction(reaction, ctx.message.author)
+            move = translate[reaction.emoji]
+
+            if move == 'restart':
+                restart = True
+                break
+
+            elif move == "left":
+                check = (position[0], (position[1] - 1) % DIM)
+                if board_of_string[check] != '1':
+                    valid_move = True
+            elif move == "right":
+                check = (position[0], (position[1] + 1) % DIM)
+                if board_of_string[check] != '1':
+                    valid_move = True
+
+            elif move == "up":
+                check = ((position[0] - 1), position[1])
+                if min(check) >= 0 and max(check) < DIM and board_of_string[check] != '1':
+                    valid_move = True
+            elif move == "down":
+                check = ((position[0] + 1), position[1])
+                if min(check) >= 0 and max(check) < DIM and board_of_string[check] != '1':
+                    valid_move = True
+            else:
+                logger.error(f"Unknown move in slipper: {move}, {reaction}")
+
+            if valid_move:
+                position = check
+            else:
+                text = f"{message.content}\nThis move is not valid"
+                await message.edit(content=text)
+                continue
+
+            if position == win_position:
+                win = True
+
+            draw_board = board_of_string.copy()
+            draw_board[position] = "x"
+            await message.edit(content=board_to_monotext(draw_board, ones='#', zeros='.'))
+
+            if win:
+                break
+
+        if not restart or win:
+            break
+    if win:
+        game_over = message.content + f"\nCongratulations {ctx.message.author.name}! You have won!"
+    else:
+        game_over = message.content + f"\nGame over, you lost {ctx.message.author.name}"
+
+    await message.edit(content=game_over)
+    await message.add_reaction("🏅")
+    for rc in game_controls:
+        await message.clear_reaction(rc)
+
+
+def slipper_empty_board(a=10):
+    area = a * a
+    ammount = area // 2.5
+    board = [1 if x < ammount else 0 for x in range(area)]
+    random.shuffle(board)
+    board = np.array(board).reshape(a, a)
+    return board
+
+
+def board_to_monotext(board, el_size=2, distance_between=0,
+                      ones='1', zeros='0'):
+    temp_board = np.array(board, dtype='str')
+    mask0 = board == '0'
+    mask1 = board == '1'
+
+    temp_board[mask0] = zeros
+    temp_board[mask1] = ones
+
+    text = "\n".join([str(' ' * distance_between).join([f"{num:<{el_size}}" for num in row]) for row in temp_board])
+    text = f"```\n{text}\n```"
+    return text
+
+
+@bot.command()
+async def private(ctx):
+    await ctx.author.send("hello")
+
+
+@bot.command()
+async def spam(ctx, num=1):
     num = int(num)
     for x in range(num):
         await ctx.channel.send(x + 1)
@@ -314,7 +448,6 @@ async def react(ctx, *args, **kwargs):
         print(f"New reaction: {reaction}")
         return user == ctx.message.author and message.id == reaction.message.id and reaction.emoji == "⛔"
 
-    # message.ree
     try:
         reaction, user = await bot.wait_for('reaction_add', check=check_reaction, timeout=600)
     except asyncio.TimeoutError:
@@ -354,17 +487,17 @@ async def on_command_error(ctx, command_error):
         logger.error(f"Unpredicted Error: '{command_error}, cmd: {text}', server: '{server}'")
 
 
-@bot.command()
-async def hello(ctx, *args):
+@bot.command(aliases=['hi'])
+async def hello(ctx):
     pool = ["Hello there {0}", "How is it going today {0} ?", "What's up {0}?", "Hey {0}",
             "Hi {0}, do you feel well today?", "Good day {0}"]
-    text = random.sample(pool, 1)[0]
+    text = random.choice(pool)
     await ctx.send(text.format(ctx.message.author.name))
 
 
 @bot.command()
 @delete_call
-@advanced_perm_check(not_priv)
+@advanced_perm_check(is_not_priv)
 async def countdown(ctx, num=10, dry=False, force=False, **kwargs):
     try:
         num = int(num)
