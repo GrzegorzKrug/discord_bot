@@ -108,7 +108,6 @@ def advanced_args(fun):
         # dry = False
         if not kwargs:
             kwargs = {"force": False, "dry": False, "sudo": False}
-
         for arg in args:
             if arg.startswith("-f"):
                 "force, enforce parameters"
@@ -607,7 +606,7 @@ async def ask(ctx, *args, **kwargs):
 
 @bot.command(aliases=['czy', 'is', 'what', 'how'])
 @advanced_perm_check(is_not_priv)
-async def poll(ctx, *args, dry=False, timeout=10, **kwargs):
+async def poll(ctx, *args, force=False, dry=False, codeblock=True, timeout=120, **kwargs):
     """
     Multi choice poll with maximum 10 answers
     Example `!poll Question; answer1; answer2; .... answer10`
@@ -623,32 +622,90 @@ async def poll(ctx, *args, dry=False, timeout=10, **kwargs):
 
     """
     text = ' '.join(args)
-    arr_text = re.split(r"['\.?!;,']", text)
+    arr_text = re.split(r"['\.?;,']", text)
     arr_text = [el.lstrip().rstrip() for el in arr_text if len(el) > 0]
-    question, *answers = arr_text
+    if type(codeblock) is str:
+        codeblock = False if codeblock.lower().startswith('false') else True
+
     timeout = float(timeout)
+    if timeout > 600 and not force:
+        timeout = 600
+
+    if len(arr_text) < 3:
+        await ctx.send(f"Got less than 1 questions and 2 answers, sorry")
+        return None
+
+    question, *answers = arr_text
+    question = question.title()
+
     if dry:
-        await ctx.send(f"Question: {question}")
-        await ctx.send(f"Answers {len(answers)}: {answers}")
-        await ctx.send(f"timeout: {timeout}")
-    elif len(answers) < 2:
-        await ctx.send(f"Got less than 2 answers, sorry")
+        text = f"Question: {question}\n" + f"Answers {len(answers)}: {answers}\n" + f"Timeout: {timeout}"
+        await ctx.send(text)
+
     elif len(answers) > 10:
         await ctx.send(f"Got more than 10 answers, sorry")
     else:
+        await ctx.message.delete()
+        answer_dict = {}
         text = question + '?\n'
-        for num, ans in enumerate(answers, 1):
-            text += f"{EMOJIS[str(num)]} {ans}\n"
-        poll = await ctx.send(f"{text}")
 
-        # await ctx.message.delete()
+        if codeblock:
+            text += "```"
+        for num, ans in enumerate(answers, 1):
+            emoji = EMOJIS[str(num)]
+            answer_dict[emoji] = {'ans': ans, 'votes': 0}
+            text += f"{emoji} {ans}\n"
+        if codeblock:
+            text += "```"
+
+        poll = await ctx.send(f"{text}")
+        await poll.add_reaction("🛑")
+
         for num in range(1, len(answers) + 1):
             await poll.add_reaction(EMOJIS[str(num)])
             await asyncio.sleep(0.01)
 
-        await asyncio.sleep(timeout)
+        def check_end_reaction(reaction, user):
+            b1 = reaction.emoji == "🛑"
+            b2 = reaction.message.id == poll.id
+            b3 = user == ctx.message.author
+            return b1 and b2 and b3
 
-        await ctx.send("Time has ended")
+        try:
+            reaction, message = await bot.wait_for('reaction_add', check=check_end_reaction, timeout=timeout)
+        except asyncio.TimeoutError as err:
+            pass
+
+        poll = await ctx.channel.fetch_message(poll.id)
+        all_votes = 0
+        vote_emojis = [EMOJIS[str(num)] for num in range(1, 11)]
+        for rc in poll.reactions:
+            if rc.emoji not in vote_emojis:
+                continue
+            me = rc.me
+            count = rc.count - 1 if me else 0
+            all_votes += count
+            answer_dict[rc.emoji]['votes'] = count
+
+        text = f'{str(question).title()}?\n'
+        if codeblock:
+            text += "```"
+
+        for number in range(1, 11):
+            try:
+                emoji = EMOJIS[str(number)]
+                ans = answer_dict[emoji]['ans']
+                votes = answer_dict[emoji]['votes']
+                fraction = votes / all_votes * 100 if all_votes > 0 else 0
+                answer = f"{emoji} {fraction:<4.1f} % - {ans}"
+                text += "\n" + answer
+            except KeyError:
+                break
+
+        if codeblock:
+            text += "```"
+
+        await poll.edit(content=text)
 
 
 @bot.command()
