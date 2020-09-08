@@ -7,6 +7,7 @@ import scipy
 import cv2
 import sys
 import os
+import re
 
 from discord.ext.commands import Bot, check, CommandError
 from collections import namedtuple
@@ -77,6 +78,18 @@ def is_not_priv(ctx, *args, **kwargs):
 logger = define_logger("Bot")
 
 bot = Bot(command_prefix='!', case_insensitive=True)
+EMOJIS = {
+        '1': '1️⃣',
+        '2': '2️⃣',
+        '3': '3️⃣',
+        '4': '4️⃣',
+        '5': '5️⃣',
+        '6': '6️⃣',
+        '7': '7️⃣',
+        '8': '8️⃣',
+        '9': '9️⃣',
+        '10': '🔟'
+}
 
 
 def advanced_args(fun):
@@ -163,6 +176,7 @@ def advanced_perm_check(*checking_funs):
                 raise CommandError("No permission")
 
         f.__name__ = fun.__name__
+        f.__doc__ = fun.__doc__
         return f
 
     return decorator
@@ -195,7 +209,7 @@ def delete_call(fun):
         message object returned by calling given function with given params
     """
 
-    async def wrapper(ctx, *args, **kwargs):
+    async def decorator(ctx, *args, **kwargs):
 
         try:
             await ctx.message.delete()
@@ -205,8 +219,9 @@ def delete_call(fun):
         result = await fun(ctx, *args, **kwargs)
         return result
 
-    wrapper.__name__ = fun.__name__
-    return wrapper
+    decorator.__name__ = fun.__name__
+    decorator.__doc__ = fun.__doc__
+    return decorator
 
 
 def trash_after(timeout=600):
@@ -223,7 +238,7 @@ def trash_after(timeout=600):
     """
 
     def function(fun):
-        async def wrapper(ctx, *args, **kwargs):
+        async def decorator(ctx, *args, **kwargs):
 
             message = await fun(ctx, *args, **kwargs)
 
@@ -248,8 +263,9 @@ def trash_after(timeout=600):
 
             await message.delete()
 
-        wrapper.__name__ = fun.__name__
-        return wrapper
+        decorator.__name__ = fun.__name__
+        decorator.__doc__ = fun.__doc__
+        return decorator
 
     return function
 
@@ -301,13 +317,14 @@ async def slipper(ctx, dim=10, *args, **kwargs):
     DIM = int(dim)
     DIM = 5 if DIM < 2 else DIM
 
-    while True and game_num < 5:
+    while True and game_num < 10:
         game_num += 1
         restart = False
         position = (0, 0)
         win_position = (DIM - 1, DIM - 1)
 
         board_of_string = slipper_empty_board(DIM)
+
         board_of_string[0:2, 0:2] = 0
         board_of_string[-2:, -2:] = 0
 
@@ -428,6 +445,8 @@ async def private(ctx):
 @bot.command()
 async def spam(ctx, num=1):
     num = int(num)
+    if num > 100:
+        num = 100
     for x in range(num):
         await ctx.channel.send(x + 1)
         await asyncio.sleep(0.01)
@@ -524,7 +543,7 @@ async def countdown(ctx, num=10, dry=False, force=False, **kwargs):
 
 @bot.command()
 @delete_call
-@trash_after()
+# @trash_after()
 async def sweeper(ctx, *args):
     """Generates sweeper argsay with counted bombs next to given field"""
     logger.debug(f"sweeper args: {args}")
@@ -579,6 +598,57 @@ async def sweeper(ctx, *args):
     logger.debug(f"{sweeper_text}")
     message = await ctx.send(sweeper_text)
     return message
+
+
+@bot.command()
+async def ask(ctx, *args, **kwargs):
+    raise NotImplementedError
+
+
+@bot.command(aliases=['czy', 'is', 'what', 'how'])
+@advanced_perm_check(is_not_priv)
+async def poll(ctx, *args, dry=False, timeout=10, **kwargs):
+    """
+    Multi choice poll with maximum 10 answers
+    Example `!poll Question; answer1; answer2; .... answer10`
+    You can add more time with `timeout=100`
+    Use `-d` for dryrun
+    Args:
+        ctx:
+        *args:
+        dry:
+        **kwargs:
+
+    Returns:
+
+    """
+    text = ' '.join(args)
+    arr_text = re.split(r"['\.?!;,']", text)
+    arr_text = [el.lstrip().rstrip() for el in arr_text if len(el) > 0]
+    question, *answers = arr_text
+    timeout = float(timeout)
+    if dry:
+        await ctx.send(f"Question: {question}")
+        await ctx.send(f"Answers {len(answers)}: {answers}")
+        await ctx.send(f"timeout: {timeout}")
+    elif len(answers) < 2:
+        await ctx.send(f"Got less than 2 answers, sorry")
+    elif len(answers) > 10:
+        await ctx.send(f"Got more than 10 answers, sorry")
+    else:
+        text = question + '?\n'
+        for num, ans in enumerate(answers, 1):
+            text += f"{EMOJIS[str(num)]} {ans}\n"
+        poll = await ctx.send(f"{text}")
+
+        # await ctx.message.delete()
+        for num in range(1, len(answers) + 1):
+            await poll.add_reaction(EMOJIS[str(num)])
+            await asyncio.sleep(0.01)
+
+        await asyncio.sleep(timeout)
+
+        await ctx.send("Time has ended")
 
 
 @bot.command()
