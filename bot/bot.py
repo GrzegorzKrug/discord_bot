@@ -9,8 +9,8 @@ import sys
 import os
 import re
 
-from discord.ext.commands import Bot, check, CommandError
-from collections import namedtuple
+from discord.ext.commands import Bot, CommandError
+from discord import Activity, ActivityType, Game, CustomActivity, Status
 
 
 def define_logger(name="Logger", log_level="DEBUG",
@@ -120,7 +120,7 @@ def advanced_args(fun):
                 kwargs['sudo'] = True
             elif arg.startswith("-"):
                 try:
-                    var = float(arg)
+                    _ = float(arg)
                     good_args.append(arg)
                 except ValueError:
                     "drop unknown parameters"
@@ -184,6 +184,15 @@ def advanced_perm_check(*checking_funs):
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user.name}")
+    # print(dir(bot))
+    # print(bot.guilds)
+
+    act = Game(name="!sweeper.", url='Fancy url', type=0)
+    # act = CustomActivity("Customasdus")
+    # act = Activity(name="Custom.")
+
+    await bot.change_presence(activity=act, status=Status.online)
+    await announcement("✅ Hey, i'm now online.", [750696820736393261])
     # print('Logged on as {0}!'.format(self.user))
 
 
@@ -192,10 +201,18 @@ async def on_message(message):
     await bot.process_commands(message)
 
 
-# @bot.event
-# async def activity():
-#     print("activated")
-#     pass
+@bot.event
+async def close():
+    act = Game(name="Sleeping.")
+    await bot.change_presence(activity=act, status=Status.offline)
+    await announcement("💤 Sorry, I am going offline.", [750696820736393261])
+
+
+async def announcement(message, chids=None):
+    for ch in chids:
+        channel = bot.get_channel(ch)
+        await channel.send(message)
+        await asyncio.sleep(0.01)
 
 
 def delete_call(fun):
@@ -544,7 +561,15 @@ async def countdown(ctx, num=10, dry=False, force=False, **kwargs):
 @delete_call
 # @trash_after()
 async def sweeper(ctx, *args):
-    """Generates sweeper argsay with counted bombs next to given field"""
+    """
+    Generates sweeper game, !sweeper (size) (bombs)
+    Args:
+        ctx:
+        *args:
+
+    Returns:
+
+    """
     logger.debug(f"sweeper args: {args}")
     if len(args) == 0:
         size = 7
@@ -609,8 +634,9 @@ async def ask(ctx, *args, **kwargs):
 async def poll(ctx, *args, force=False, dry=False, codeblock=True, timeout=120, **kwargs):
     """
     Multi choice poll with maximum 10 answers
-    Example `!poll Question; answer1; answer2; .... answer10`
-    You can add more time with `timeout=100`
+    Example `!poll Question, answer1, answer2, .... answer10`
+    Available delimeters: . ; ,
+    You can add more time with `timeout=100`, maxiumum is 1200 (20 min)
     Use `-d` for dryrun
     Args:
         ctx:
@@ -628,8 +654,8 @@ async def poll(ctx, *args, force=False, dry=False, codeblock=True, timeout=120, 
         codeblock = False if codeblock.lower().startswith('false') else True
 
     timeout = float(timeout)
-    if timeout > 600 and not force:
-        timeout = 600
+    if timeout > 1200 and not force:
+        timeout = 1200
 
     if len(arr_text) < 3:
         await ctx.send(f"Got less than 1 questions and 2 answers, sorry")
