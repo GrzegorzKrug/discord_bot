@@ -10,7 +10,7 @@ import os
 import re
 
 from discord.ext.commands import Bot, CommandError
-from discord import Activity, ActivityType, Game, CustomActivity, Status
+from discord import Activity, ActivityType, Game, CustomActivity, Status, BaseActivity
 
 
 def define_logger(name="Logger", log_level="DEBUG",
@@ -183,17 +183,10 @@ def advanced_perm_check(*checking_funs):
 
 @bot.event
 async def on_ready():
-    print(f"Logged in as {bot.user.name}")
-    # print(dir(bot))
-    # print(bot.guilds)
-
     act = Game(name="!sweeper.", url='Fancy url', type=0)
-    # act = CustomActivity("Customasdus")
-    # act = Activity(name="Custom.")
-
     await bot.change_presence(activity=act, status=Status.online)
     await announcement("✅ Hey, i'm now online.", [750696820736393261])
-    # print('Logged on as {0}!'.format(self.user))
+    logger.debug(f"Going online as {bot.user.name}")
 
 
 @bot.event
@@ -203,9 +196,10 @@ async def on_message(message):
 
 @bot.event
 async def close():
-    act = Game(name="Sleeping.")
+    act = Game(name="Zzzzzzz....", type=2)
     await bot.change_presence(activity=act, status=Status.offline)
     await announcement("💤 Sorry, I am going offline.", [750696820736393261])
+    logger.debug(f"Going offline")
 
 
 async def announcement(message, chids=None):
@@ -226,13 +220,13 @@ def delete_call(fun):
     """
 
     async def decorator(ctx, *args, **kwargs):
+        result = await fun(ctx, *args, **kwargs)
 
         try:
             await ctx.message.delete()
         except Exception as pe:
-            logger.error(f"Permission error: {pe}")
+            logger.error(f"Can not delete call: {pe}")
 
-        result = await fun(ctx, *args, **kwargs)
         return result
 
     decorator.__name__ = fun.__name__
@@ -286,60 +280,126 @@ def trash_after(timeout=600):
     return function
 
 
-@bot.command()
-@trash_after()
-@delete_call
-async def test(ctx, *args, dry=False, force=False, **kwargs):
-    logger.debug("Test 1 ok ?")
-    message = await ctx.channel.send("Test 1 ok ?")
-    return message
+def log_call(fun):
+    """
+    Decorator, logs function.
+    Args:
+        timeout: Integer, default 600
+
+    Returns:
+        message object returned by calling given function with given params
+    """
+
+    async def decorator(ctx, *args, **kwargs):
+        if ctx.guild:
+            guild = f"{ctx.guild.name} ({ctx.guild.id})"
+        else:
+            guild = 'private'
+        logger.info(f"Invo: '{ctx.message.content}', Args:{args}, Kwargs:{kwargs}. {ctx.channel}, {guild}")
+
+        message = await fun(ctx, *args, **kwargs)
+        return message
+
+    decorator.__name__ = fun.__name__
+    decorator.__doc__ = fun.__doc__
+    return decorator
 
 
 @bot.command(aliases=['purge'])
 @advanced_perm_check()
-@delete_call
-async def purge_all(ctx, num=1, *args, **kwargs):
+@log_call
+async def purge_all(ctx, amount, *args, **kwargs):
+    """
+    !purge amount, removes all messages
+    Args:
+        ctx:
+        amount:
+        *args:
+        **kwargs:
+
+    Returns:
+
+    """
     channel = ctx.channel
-    num = int(num)
+    num = int(amount) + 1  # call is additional
+    if num >= 1:
+        def check_true(m):
+            return True
 
-    def is_me(m):
-        return True
+        deleted = await channel.purge(limit=num, check=check_true)
+        logger.info(f"Removed {len(deleted)} messages in {ctx.channel}: {ctx.guild}")
 
-    logger.info(f"Removing {num} messages in {ctx.channel}: {ctx.guild}")
-    await channel.purge(limit=num, check=is_me)
+        await ctx.send(f"♻️ Removed {len(deleted)} messages", delete_after=5)
 
 
 @bot.command()
 @advanced_perm_check()
-@delete_call
-async def purge_bot(ctx, num=1, *args, **kwargs):
+@log_call
+async def purge_id(ctx, authorid, amount, *args, **kwargs):
+    """
+    !purge id amount, removes all messages sent by author,
+    Args:
+        ctx:
+        amount:
+        *args:
+        **kwargs:
+
+    Returns:
+
+    """
     channel = ctx.channel
-    num = int(num)
+    num = int(amount) + 1  # call is additional
+    authorid = int(authorid)
+
+    if num >= 1:
+        def check_true(m):
+            return authorid == m.author.id
+
+        deleted = await channel.purge(limit=num, check=check_true)
+        logger.info(f"Removed {len(deleted)} messages in {ctx.channel}: {ctx.guild}")
+
+        await ctx.send(f"♻️ Removed {len(deleted)} messages", delete_after=5)
+
+
+@bot.command()
+@advanced_perm_check()
+@log_call
+async def purge_bot(ctx, amount, *args, **kwargs):
+    channel = ctx.channel
+    num = int(amount) + 1  # call is additional
 
     def is_me(m):
         return m.author.id == bot.user.id
 
-    logger.info(f"Removing {num} bot messages in {ctx.channel}: {ctx.guild}")
-    await channel.purge(limit=num, check=is_me)
+    if num >= 1:
+        deleted = await channel.purge(limit=num, check=is_me)
+        logger.info(f"Removed {len(deleted)} bot messages in {ctx.channel}: {ctx.guild}")
+        await ctx.send(f"♻️ Removed {len(deleted)} bot messages", delete_after=5)
 
 
 @bot.command()
 @advanced_perm_check(is_not_priv)
-async def slipper(ctx, dim=10, *args, **kwargs):
+@log_call
+async def slipper(ctx, dimy=10, dimx=6, *args, **kwargs):
     game_controls = ['⬅️', '➡', '⬆️', '⬇️', '🔁']
     translate = {'⬅️': 'left', '➡': 'right', '⬆️': 'up', '⬇️': 'down', '🔁': 'restart'}
     message = await ctx.send("Let's start the game.")
     game_num = 0
-    DIM = int(dim)
-    DIM = 5 if DIM < 2 else DIM
+    win = False
+
+    DIMY = int(dimy)
+    DIMY = 5 if DIMY < 5 else DIMY
+
+    DIMX = int(dimx)
+    DIMX = 3 if DIMX < 3 else DIMX
 
     while True and game_num < 10:
         game_num += 1
         restart = False
         position = (0, 0)
-        win_position = (DIM - 1, DIM - 1)
 
-        board_of_string = slipper_empty_board(DIM)
+        win_position = (DIMY - 1, DIMX - 1)
+        board_of_string = slipper_empty_board(DIMX, DIMY)
 
         board_of_string[0:2, 0:2] = 0
         board_of_string[-2:, -2:] = 0
@@ -367,11 +427,10 @@ async def slipper(ctx, dim=10, *args, **kwargs):
             win = False
             moves -= 1
             try:
-                reaction, user = await bot.wait_for('reaction_add', timeout=60, check=check_reaction)
+                reaction, user = await bot.wait_for('reaction_add', timeout=35, check=check_reaction)
             except asyncio.TimeoutError:
-                game_over = message.content + f"\nTimeout, you lost {ctx.message.author.name}"
-                await message.edit(content=game_over)
-                return message
+                message.content += f"\nTimeout..."
+                break
 
             await message.remove_reaction(reaction, ctx.message.author)
             move = translate[reaction.emoji]
@@ -381,21 +440,21 @@ async def slipper(ctx, dim=10, *args, **kwargs):
                 break
 
             elif move == "left":
-                check = (position[0], (position[1] - 1) % DIM)
+                check = (position[0], (position[1] - 1) % DIMX)
                 if board_of_string[check] != '1':
                     valid_move = True
             elif move == "right":
-                check = (position[0], (position[1] + 1) % DIM)
+                check = (position[0], (position[1] + 1) % DIMX)
                 if board_of_string[check] != '1':
                     valid_move = True
 
             elif move == "up":
                 check = ((position[0] - 1), position[1])
-                if min(check) >= 0 and max(check) < DIM and board_of_string[check] != '1':
+                if min(check) >= 0 and max(check) < DIMY and board_of_string[check] != '1':
                     valid_move = True
             elif move == "down":
                 check = ((position[0] + 1), position[1])
-                if min(check) >= 0 and max(check) < DIM and board_of_string[check] != '1':
+                if min(check) >= 0 and max(check) < DIMY and board_of_string[check] != '1':
                     valid_move = True
             else:
                 logger.error(f"Unknown move in slipper: {move}, {reaction}")
@@ -425,17 +484,21 @@ async def slipper(ctx, dim=10, *args, **kwargs):
         game_over = message.content + f"\nGame over, you lost {ctx.message.author.name}"
 
     await message.edit(content=game_over)
-    await message.add_reaction("🏅")
+    if win:
+        await message.add_reaction("🏅")
+    else:
+        await message.add_reaction("🍬")
+
     for rc in game_controls:
         await message.clear_reaction(rc)
 
 
-def slipper_empty_board(a=10):
-    area = a * a
+def slipper_empty_board(x=10, y=10):
+    area = x * y
     ammount = area // 2.5
     board = [1 if x < ammount else 0 for x in range(area)]
     random.shuffle(board)
-    board = np.array(board).reshape(a, a)
+    board = np.array(board).reshape(y, x)
     return board
 
 
@@ -454,11 +517,32 @@ def board_to_monotext(board, el_size=2, distance_between=0,
 
 
 @bot.command()
+@advanced_args
+@log_call
+async def eft(ctx, *keyword, dry=False, **kwargs):
+    search_url = r'https://escapefromtarkov.gamepedia.com/index.php?search='
+    search_phrase = '+'.join(keyword)
+
+    results = requests.get(search_url + search_phrase)
+    print(results.text)
+
+
+@bot.command()
+@log_call
 async def private(ctx):
+    """
+    Hello in private channel
+    Args:
+        ctx:
+
+    Returns:
+
+    """
     await ctx.author.send("hello")
 
 
 @bot.command()
+@log_call
 async def spam(ctx, num=1):
     num = int(num)
     if num > 100:
@@ -492,7 +576,16 @@ async def react(ctx, *args, **kwargs):
 
 
 @bot.command(name="saveme")
+@log_call
 async def save_avatar(ctx):
+    """
+    Saves avatar in directory
+    Args:
+        ctx:
+
+    Returns:
+
+    """
     avatar_url = ctx.author.avatar_url
     name = ctx.author.name
 
@@ -506,7 +599,6 @@ async def on_command_error(ctx, command_error):
     invoked = ctx.invoked_with
     text_error = str(command_error)
     server = "private_message" if not ctx.guild else f"{ctx.guild} ({ctx.guild.id})"
-
     if text_error.startswith("The check functions for command") or text_error.startswith("No permission"):
         logger.warning(f"No permission: '{text}', server: '{server}'")
         await ctx.message.add_reaction("⛔")
@@ -515,14 +607,16 @@ async def on_command_error(ctx, command_error):
     elif text_error.endswith("is not found"):
         logger.warning(f"Command not found: '{text}', server: '{server}'")
         await ctx.message.add_reaction("❓")
-        # await asyncio.sleep(10)
-        # await ctx.message.clear_reaction("❓")
+
+    elif "required positional argument" in text_error:
+        await ctx.channel.send(f"Some arguments are missing: '{command_error.original}'")
 
     else:
-        logger.error(f"Unpredicted Error: '{command_error}, cmd: {text}', server: '{server}'")
+        logger.error(f"No reaction for this error type: '{command_error}, cmd: {text}', server: '{server}'")
 
 
 @bot.command(aliases=['hi'])
+@log_call
 async def hello(ctx):
     pool = ["Hello there {0}", "How is it going today {0} ?", "What's up {0}?", "Hey {0}",
             "Hi {0}, do you feel well today?", "Good day {0}"]
@@ -533,11 +627,12 @@ async def hello(ctx):
 @bot.command()
 @delete_call
 @advanced_perm_check(is_not_priv)
+@log_call
 async def countdown(ctx, num=10, dry=False, force=False, **kwargs):
     try:
         num = int(num)
-        if num > 30 and not force:
-            num = 30
+        if num > 10 and not force:
+            num = 10
         if num < 1:
             num = 1
 
@@ -559,7 +654,7 @@ async def countdown(ctx, num=10, dry=False, force=False, **kwargs):
 
 @bot.command()
 @delete_call
-# @trash_after()
+@log_call
 async def sweeper(ctx, *args):
     """
     Generates sweeper game, !sweeper (size) (bombs)
@@ -570,7 +665,7 @@ async def sweeper(ctx, *args):
     Returns:
 
     """
-    logger.debug(f"sweeper args: {args}")
+    logger.info(f"!sweeper at {ctx.channel} {ctx.guild.name}")
     if len(args) == 0:
         size = 7
         bombs = None
@@ -625,18 +720,20 @@ async def sweeper(ctx, *args):
 
 
 @bot.command()
+@log_call
 async def ask(ctx, *args, **kwargs):
     raise NotImplementedError
 
 
 @bot.command(aliases=['czy', 'is', 'what', 'how'])
 @advanced_perm_check(is_not_priv)
+@log_call
 async def poll(ctx, *args, force=False, dry=False, codeblock=True, timeout=120, **kwargs):
     """
     Multi choice poll with maximum 10 answers
     Example `!poll Question, answer1, answer2, .... answer10`
     Available delimeters: . ; ,
-    You can add more time with `timeout=100`, maxiumum is 1200 (20 min)
+    You can add more time with `timeout=200`, default 120, maxiumum is 1200 (20 min)
     Use `-d` for dryrun
     Args:
         ctx:
@@ -735,11 +832,22 @@ async def poll(ctx, *args, force=False, dry=False, codeblock=True, timeout=120, 
 
 
 @bot.command()
-@advanced_perm_check()
-async def test2(ctx, *args, **kwargs):
-    await ctx.channel.send("Test 2 ok ?")
-    await ctx.channel.send(f"args: {args}")
-    await ctx.channel.send(f"kwargs: {kwargs}")
+@advanced_perm_check(is_not_priv)
+@log_call
+async def shoot(ctx, user, num=3, *args, force=False, dry=False, **kwargs):
+    LIVE_EMOJIS = ['😀', '😃', '😁', '😕', '😟', '😒', '😩', '🥺', '😭', '😢', '😬', '😶']
+    DEAD_EMOJIS = ['😵', '💀', '☠️', '👻']
+
+    num = int(num)
+    if num > 10 and not force:
+        num = 10
+
+    for x in range(num):
+        liv_em = random.choice(LIVE_EMOJIS)
+        dead_em = random.choice(DEAD_EMOJIS)
+        shoot = await ctx.send(f"{user} {liv_em} ⬛🔫 {ctx.author.mention}")
+        await asyncio.sleep(random.randint(10, 30) / 10)
+        await shoot.edit(content=f"{user} {dead_em} 💥🔫 {ctx.author.mention}")
 
 
 async def get_picture(url_pic):

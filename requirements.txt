@@ -25,3 +25,4 @@ scipy==1.5.2
 six==1.15.0
 urllib3==1.25.10
 yarl==1.5.1
+mwclient==0.10.1
