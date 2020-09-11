@@ -4,13 +4,14 @@ import asyncio
 import logging
 import random
 import scipy
+import time
 import cv2
 import sys
 import os
 import re
 
 from discord.ext.commands import Bot, CommandError
-from discord import Activity, ActivityType, Game, CustomActivity, Status, BaseActivity
+from discord import Activity, Game, Status, Embed, Colour
 
 
 def define_logger(name="Logger", log_level="DEBUG",
@@ -335,6 +336,7 @@ async def purge_all(ctx, amount, *args, **kwargs):
 @bot.command()
 @advanced_perm_check()
 @log_call
+@delete_call
 async def purge_id(ctx, authorid, amount, *args, **kwargs):
     """
     !purge id amount, removes all messages sent by author,
@@ -348,7 +350,7 @@ async def purge_id(ctx, authorid, amount, *args, **kwargs):
 
     """
     channel = ctx.channel
-    num = int(amount) + 1  # call is additional
+    num = int(amount)
     authorid = int(authorid)
 
     if num >= 1:
@@ -364,9 +366,10 @@ async def purge_id(ctx, authorid, amount, *args, **kwargs):
 @bot.command()
 @advanced_perm_check()
 @log_call
+@delete_call
 async def purge_bot(ctx, amount, *args, **kwargs):
     channel = ctx.channel
-    num = int(amount) + 1  # call is additional
+    num = int(amount)
 
     def is_me(m):
         return m.author.id == bot.user.id
@@ -665,7 +668,6 @@ async def sweeper(ctx, *args):
     Returns:
 
     """
-    logger.info(f"!sweeper at {ctx.channel} {ctx.guild.name}")
     if len(args) == 0:
         size = 7
         bombs = None
@@ -714,7 +716,6 @@ async def sweeper(ctx, *args):
             for row in bomb_arr)
     text = f"Sweeper {size}x{size}, bombs: {bombs:.0f}  ({bombs / fields * 100:.0f}%)"
     sweeper_text = f"{text}\n{hidden_text}"
-    logger.debug(f"{sweeper_text}")
     message = await ctx.send(sweeper_text)
     return message
 
@@ -728,7 +729,7 @@ async def ask(ctx, *args, **kwargs):
 @bot.command(aliases=['czy', 'is', 'what', 'how'])
 @advanced_perm_check(is_not_priv)
 @log_call
-async def poll(ctx, *args, force=False, dry=False, codeblock=True, timeout=120, **kwargs):
+async def poll(ctx, *args, force=False, dry=False, timeout=120, **kwargs):
     """
     Multi choice poll with maximum 10 answers
     Example `!poll Question, answer1, answer2, .... answer10`
@@ -747,8 +748,8 @@ async def poll(ctx, *args, force=False, dry=False, codeblock=True, timeout=120, 
     text = ' '.join(args)
     arr_text = re.split(r"['\.?;,']", text)
     arr_text = [el.lstrip().rstrip() for el in arr_text if len(el) > 0]
-    if type(codeblock) is str:
-        codeblock = False if codeblock.lower().startswith('false') else True
+    poll_color = Colour.from_rgb(250, 165, 0)
+    finished_poll_color = Colour.from_rgb(30, 255, 0)
 
     timeout = float(timeout)
     if timeout > 1200 and not force:
@@ -759,43 +760,48 @@ async def poll(ctx, *args, force=False, dry=False, codeblock=True, timeout=120, 
         return None
 
     question, *answers = arr_text
-    question = question.title()
+    question = question.title() + "?"
 
     if dry:
         text = f"Question: {question}\n" + f"Answers {len(answers)}: {answers}\n" + f"Timeout: {timeout}"
         await ctx.send(text)
+        return None
 
     elif len(answers) > 10:
         await ctx.send(f"Got more than 10 answers, sorry")
-    else:
-        await ctx.message.delete()
-        answer_dict = {}
-        text = question + '?\n'
+        return None
 
-        if codeblock:
-            text += "```"
-        for num, ans in enumerate(answers, 1):
-            emoji = EMOJIS[str(num)]
-            answer_dict[emoji] = {'ans': ans, 'votes': 0}
-            text += f"{emoji} {ans}\n"
-        if codeblock:
-            text += "```"
+    await ctx.message.delete()
 
-        poll = await ctx.send(f"{text}")
-        await poll.add_reaction("🛑")
+    answer_dict = {}
 
-        for num in range(1, len(answers) + 1):
-            await poll.add_reaction(EMOJIS[str(num)])
-            await asyncio.sleep(0.01)
+    embed = Embed(title=question, colour=poll_color)
+    embed.set_author(name=ctx.author.name)
 
-        def check_end_reaction(reaction, user):
-            b1 = reaction.emoji == "🛑"
-            b2 = reaction.message.id == poll.id
-            b3 = user == ctx.message.author
-            return b1 and b2 and b3
+    for num, ans in enumerate(answers, 1):
+        emoji = EMOJIS[str(num)]
+        answer_dict[emoji] = {'ans': ans, 'votes': 0}
+        embed.add_field(name=emoji, value=ans, inline=False)
 
+    poll = await ctx.send(embed=embed)
+
+    await poll.add_reaction("🛑")
+    for num in range(1, len(answers) + 1):
+        await poll.add_reaction(EMOJIS[str(num)])
+        await asyncio.sleep(0.01)
+
+    def check_end_reaction(reaction, user):
+        b1 = reaction.emoji == "🛑"
+        b2 = reaction.message.id == poll.id
+        b3 = user == ctx.message.author
+        return b1 and b2 and b3
+
+    end_time = time.time() + timeout
+    while time.time() <= end_time:
+        end_loop = False
         try:
-            reaction, message = await bot.wait_for('reaction_add', check=check_end_reaction, timeout=timeout)
+            reaction, message = await bot.wait_for('reaction_add', check=check_end_reaction, timeout=30)
+            end_loop = True
         except asyncio.TimeoutError as err:
             pass
 
@@ -810,9 +816,8 @@ async def poll(ctx, *args, force=False, dry=False, codeblock=True, timeout=120, 
             all_votes += count
             answer_dict[rc.emoji]['votes'] = count
 
-        text = f'{str(question).title()}?\n'
-        if codeblock:
-            text += "```"
+        embed = Embed(title=question, colour=poll_color)
+        embed.set_author(name=ctx.author.name)
 
         for number in range(1, 11):
             try:
@@ -820,15 +825,17 @@ async def poll(ctx, *args, force=False, dry=False, codeblock=True, timeout=120, 
                 ans = answer_dict[emoji]['ans']
                 votes = answer_dict[emoji]['votes']
                 fraction = votes / all_votes * 100 if all_votes > 0 else 0
-                answer = f"{emoji} {fraction:<4.1f} % - {ans}"
-                text += "\n" + answer
+                embed.add_field(name=f"{emoji} -`{fraction:<3.1f} %`", value=ans, inline=False)
             except KeyError:
                 break
 
-        if codeblock:
-            text += "```"
-
-        await poll.edit(content=text)
+        await poll.edit(embed=embed)
+        await asyncio.sleep(0.01)
+        if end_loop:
+            break
+    embed.color = finished_poll_color
+    await poll.edit(content='✅ Poll has ended', embed=embed)
+    await poll.clear_reaction("🛑")
 
 
 @bot.command()
@@ -873,6 +880,32 @@ def save_image(image, path):
     path = os.path.abspath(path)
     logger.debug(f"Saving image to: {path}")
     cv2.imwrite(path, image)
+
+
+@bot.command()
+@log_call
+async def test(ctx, *args, **kwargs):
+    pic_url = r'https://external-content.duckduckgo.com/iu/?u=http%3A%2F%2Fpixel.nymag.com%2Fimgs%2Fdaily%2Fintelligencer%2F2014%2F12%2F08%2F08-grumpy-cat.o.jpg%2Fa_190x190.w1200.h630.jpg&f=1&nofb=1'
+    description = "This is some big, ass text, for the title, description, " \
+                  + "including information about picture on the right side"
+
+    author = bot.get_user(147795752943353856)
+
+    col = Colour.from_rgb(30, 129, 220)
+    embed = Embed(title='Hello', color=col, description=f"[{description}]({pic_url})", url=pic_url)
+
+    embed.add_field(name=EMOJIS['1'], value="tex1", inline=True)
+    embed.add_field(name="f2", value="tex2", inline=True)
+    embed.add_field(name="f3", value="tex3", inline=False)
+    embed.add_field(name="f3", value="tex3", inline=False)
+    embed.add_field(name="f3", value="tex3", inline=False)
+    embed.add_field(name="f3", value="tex3", inline=False)
+    embed.add_field(name="f3", value="tex3", inline=True)
+    embed.set_thumbnail(url=author.avatar_url)
+    embed.set_author(name="Youshisu")
+    embed.set_footer(text='your text', icon_url=pic_url)
+    # embed.color = (200, 90, 170)
+    await ctx.send(embed=embed, content="content")
 
 
 if __name__ == "__main__":
