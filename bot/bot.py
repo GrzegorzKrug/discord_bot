@@ -777,6 +777,7 @@ async def poll(ctx, *args, force=False, dry=False, timeout=120, **kwargs):
 
     embed = Embed(title=question, colour=poll_color)
     embed.set_author(name=ctx.author.name)
+    embed.set_thumbnail(url=ctx.author.avatar_url)
 
     for num, ans in enumerate(answers, 1):
         emoji = EMOJIS[str(num)]
@@ -818,6 +819,7 @@ async def poll(ctx, *args, force=False, dry=False, timeout=120, **kwargs):
 
         embed = Embed(title=question, colour=poll_color)
         embed.set_author(name=ctx.author.name)
+        embed.set_thumbnail(url=ctx.author.avatar_url)
 
         for number in range(1, 11):
             try:
