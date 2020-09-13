@@ -626,6 +626,18 @@ async def on_command_error(ctx, command_error):
                 f"Partial traceback:\n{tb_text}")
 
 
+@bot.event
+async def on_member_join(member):
+    logger.info(f"{member} has joined {member.guild} ({member.guild.id})")
+    await member.guild.system_channel.send(f"Hello {member.mention}")
+
+
+@bot.event
+async def on_member_remove(member):
+    logger.info(f"{member} has left {member.guild} ({member.guild.id})")
+    await member.guild.system_channel.send(f"Bye {member.mention}")
+
+
 @bot.command(aliases=['hi'])
 @log_call
 async def hello(ctx):
