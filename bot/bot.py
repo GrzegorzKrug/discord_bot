@@ -618,7 +618,7 @@ async def on_command_error(ctx, command_error):
 
     else:
         tb_text = traceback.format_exception(type(command_error), command_error, command_error.__traceback__)
-        tb_text = ''.join([line for line in tb_text if 'bot/' in line])
+        tb_text = ''.join([line for line in tb_text if f'bot{os.path.sep}' in line])
         logger.error(
                 f"No reaction for this error type:\n"
                 f"Command: '{ctx.message.content}', server: '{server}', \n"
