@@ -1,4 +1,5 @@
 import numpy as np
+import traceback
 import requests
 import asyncio
 import logging
@@ -11,6 +12,7 @@ import os
 import re
 
 from discord.ext.commands import Bot, CommandError
+# from discord.ext.commands.errors import
 from discord import Activity, Game, Status, Embed, Colour
 
 
@@ -615,7 +617,13 @@ async def on_command_error(ctx, command_error):
         await ctx.channel.send(f"Some arguments are missing: '{command_error.original}'")
 
     else:
-        logger.error(f"No reaction for this error type: '{command_error}, cmd: {text}', server: '{server}'")
+        tb_text = traceback.format_exception(type(command_error), command_error, command_error.__traceback__)
+        tb_text = ''.join([line for line in tb_text if 'bot/bot.py' in line])
+        logger.error(
+                f"No reaction for this error type:\n"
+                f"Command: '{ctx.message.content}', server: '{server}', \n"
+                f"'{command_error}'\n"
+                f"Partial traceback:\n{tb_text}")
 
 
 @bot.command(aliases=['hi'])
@@ -798,6 +806,7 @@ async def poll(ctx, *args, force=False, dry=False, timeout=120, **kwargs):
         return b1 and b2 and b3
 
     end_time = time.time() + timeout
+    k_interrupt = False
     while time.time() <= end_time:
         end_loop = False
         try:
@@ -805,6 +814,10 @@ async def poll(ctx, *args, force=False, dry=False, timeout=120, **kwargs):
             end_loop = True
         except asyncio.TimeoutError as err:
             pass
+        # except KeyboardInterrupt as ki:
+        #     end_loop = True
+        #     k_interrupt = True
+        #     print(ki)
 
         poll = await ctx.channel.fetch_message(poll.id)
         all_votes = 0
@@ -910,6 +923,14 @@ async def test(ctx, *args, **kwargs):
     await ctx.send(embed=embed, content="content")
 
 
+async def custom_run(token):
+    logger.debug("Custom run")
+    await bot.login(token)
+    logger.debug("Logged in")
+    await bot.connect(reconnect=True)
+    logger.debug("Connected")
+
+
 if __name__ == "__main__":
     try:
         with open("token.txt", "rt") as file:
@@ -920,4 +941,5 @@ if __name__ == "__main__":
 
     os.makedirs("avatars", exist_ok=True)
     bot.run(token)
+    # asyncio.run(custom_run(token))
     # 470285521 # permission int
