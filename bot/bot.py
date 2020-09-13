@@ -194,7 +194,14 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
+    if bot.user in message.mentions:
+        print("yes")
     await bot.process_commands(message)
+
+
+@bot.command()
+async def test(ctx, *args):
+    await ctx.send("!test")
 
 
 @bot.event
@@ -640,7 +647,7 @@ async def on_member_remove(member):
 
 @bot.command(aliases=['hi'])
 @log_call
-async def hello(ctx):
+async def hello(ctx, *args):
     pool = ["Hello there {0}", "How is it going today {0} ?", "What's up {0}?", "Hey {0}",
             "Hi {0}, do you feel well today?", "Good day {0}"]
     text = random.choice(pool)
@@ -911,7 +918,7 @@ def save_image(image, path):
 
 @bot.command()
 @log_call
-async def test(ctx, *args, **kwargs):
+async def test_embed(ctx, *args, **kwargs):
     pic_url = r'https://external-content.duckduckgo.com/iu/?u=http%3A%2F%2Fpixel.nymag.com%2Fimgs%2Fdaily%2Fintelligencer%2F2014%2F12%2F08%2F08-grumpy-cat.o.jpg%2Fa_190x190.w1200.h630.jpg&f=1&nofb=1'
     description = "This is some big, ass text, for the title, description, " \
                   + "including information about picture on the right side"
