@@ -93,6 +93,7 @@ EMOJIS = {
         '9': '9️⃣',
         '10': '🔟'
 }
+RUDE = ['Why you bother me {0} ?!', 'Stop it {0}!', 'No, I do not like that {0}.', "Go away {0}."]
 
 
 def advanced_args(fun):
@@ -184,39 +185,21 @@ def advanced_perm_check(*checking_funs):
     return decorator
 
 
-@bot.event
-async def on_ready():
-    act = Game(name="!sweeper.", url='Fancy url', type=0)
-    await bot.change_presence(activity=act, status=Status.online)
-    await announcement("✅ Hey, i'm now online.", [750696820736393261])
-    logger.debug(f"Going online as {bot.user.name}")
+@bot.command()
+async def test(ctx, *args):
+    member = ctx.author
+    logger.info(f"{member} has joined {member.guild} ({member.guild.id})")
 
-
-@bot.event
-async def on_message(message):
-    if bot.user in message.mentions:
-        print("yes")
-    await bot.process_commands(message)
+    color = Colour.from_rgb(10, 180, 50)
+    embed = Embed(colour=color)
+    embed.set_thumbnail(url=member.avatar_url)
+    embed.add_field(name=f"Hello, {member.name}", value=f"This server has now {len(member.guild.members)} members")
+    await member.guild.system_channel.send(f"Hello {member.mention}", embed=embed)
 
 
 @bot.command()
-async def test(ctx, *args):
-    await ctx.send("!test")
-
-
-@bot.event
-async def close():
-    act = Game(name="Zzzzzzz....", type=2)
-    await bot.change_presence(activity=act, status=Status.offline)
-    await announcement("💤 Sorry, I am going offline.", [750696820736393261])
-    logger.debug(f"Going offline")
-
-
-async def announcement(message, chids=None):
-    for ch in chids:
-        channel = bot.get_channel(ch)
-        await channel.send(message)
-        await asyncio.sleep(0.01)
+async def announce(ctx, message):
+    raise NotImplementedError
 
 
 def delete_call(fun):
@@ -235,7 +218,7 @@ def delete_call(fun):
         try:
             await ctx.message.delete()
         except Exception as pe:
-            logger.error(f"Can not delete call: {pe}")
+            logger.warning(f"Can not delete call: {pe}")
 
         return result
 
@@ -315,6 +298,94 @@ def log_call(fun):
     return decorator
 
 
+@bot.event
+async def on_message(message):
+    if message.author == bot.user:
+        return None
+    logger.warning(f"Prefix in on_message is constant")
+    if bot.user in message.mentions and not message.content.startswith("!"):
+        ch = message.channel
+        text = random.choice(RUDE)
+        await ch.send(text.format(message.author.name))
+    else:
+        await bot.process_commands(message)
+
+
+@bot.event
+async def on_ready():
+    act = Game(name="!sweeper.", url='Fancy url', type=0)
+    await bot.change_presence(activity=act, status=Status.online)
+    await _announcement("✅ Hey, i'm now online.", [750696820736393261])
+    logger.warning(f"On ready announcement is constant")
+    logger.debug(f"Going online as {bot.user.name}")
+
+
+@bot.event
+async def close():
+    act = Game(name="Zzzzzzz....", type=2)
+    await bot.change_presence(activity=act, status=Status.offline)
+    await _announcement("💤 Sorry, I am going offline.", [750696820736393261])
+    logger.warning(f"close announcement is constant")
+    logger.debug(f"Going offline")
+
+
+async def _announcement(message, chids=None):
+    for ch in chids:
+        channel = bot.get_channel(ch)
+        await channel.send(message)
+        await asyncio.sleep(0.01)
+
+
+@bot.event
+async def on_command_error(ctx, command_error):
+    text = ctx.message.content
+    invoked = ctx.invoked_with
+    text_error = str(command_error)
+    server = "private_message" if not ctx.guild else f"{ctx.guild} ({ctx.guild.id})"
+    if text_error.startswith("The check functions for command") or text_error.startswith("No permission"):
+        logger.warning(f"No permission: '{text}', server: '{server}'")
+        await ctx.message.add_reaction("⛔")
+        await ctx.channel.send(f"Some permissions do not allow it to run here '{invoked}'")
+
+    elif text_error.endswith("is not found"):
+        logger.warning(f"Command not found: '{text}', server: '{server}'")
+        await ctx.message.add_reaction("❓")
+
+    elif "required positional argument" in text_error:
+        await ctx.channel.send(f"Some arguments are missing: '{command_error.original}'")
+
+    else:
+        tb_text = traceback.format_exception(type(command_error), command_error, command_error.__traceback__)
+        tb_text = ''.join([line for line in tb_text if f'bot{os.path.sep}' in line])
+        logger.error(
+                f"No reaction for this error type:\n"
+                f"Command: '{ctx.message.content}', server: '{server}', \n"
+                f"'{command_error}'\n"
+                f"Partial traceback:\n{tb_text}")
+
+
+@bot.event
+async def on_member_join(member):
+    logger.info(f"{member} has joined {member.guild} ({member.guild.id})")
+
+    color = Colour.from_rgb(10, 180, 50)
+    embed = Embed(colour=color)
+    embed.set_thumbnail(url=member.avatar_url)
+    embed.add_field(name=f"Hello, {member.name}", value=f"This server has now {len(member.guild.members)} members")
+    await member.guild.system_channel.send(f"Hello {member.mention}", embed=embed)
+
+
+@bot.event
+async def on_member_remove(member):
+    logger.info(f"{member} has left {member.guild} ({member.guild.id})")
+
+    color = Colour.from_rgb(10, 180, 50)
+    embed = Embed(colour=color)
+    embed.set_thumbnail(url=member.avatar_url)
+    embed.add_field(name=f"Bye, {member.name}", value=f"This server has now {len(member.guild.members)} members")
+    await member.guild.system_channel.send(f"Bye {member.mention}", embed=embed)
+
+
 @bot.command(aliases=['purge'])
 @advanced_perm_check()
 @log_call
@@ -380,11 +451,11 @@ async def purge_bot(ctx, amount, *args, **kwargs):
     channel = ctx.channel
     num = int(amount)
 
-    def is_me(m):
-        return m.author.id == bot.user.id
+    def is_bot(m):
+        return m.author.bot
 
     if num >= 1:
-        deleted = await channel.purge(limit=num, check=is_me)
+        deleted = await channel.purge(limit=num, check=is_bot)
         logger.info(f"Removed {len(deleted)} bot messages in {ctx.channel}: {ctx.guild}")
         await ctx.send(f"♻️ Removed {len(deleted)} bot messages", delete_after=5)
 
@@ -603,46 +674,6 @@ async def save_avatar(ctx):
 
     image = await get_picture(avatar_url)
     save_image(image, f"avatars/{name}.png")
-
-
-@bot.event
-async def on_command_error(ctx, command_error):
-    text = ctx.message.content
-    invoked = ctx.invoked_with
-    text_error = str(command_error)
-    server = "private_message" if not ctx.guild else f"{ctx.guild} ({ctx.guild.id})"
-    if text_error.startswith("The check functions for command") or text_error.startswith("No permission"):
-        logger.warning(f"No permission: '{text}', server: '{server}'")
-        await ctx.message.add_reaction("⛔")
-        await ctx.channel.send(f"Some permissions do not allow it to run here '{invoked}'")
-
-    elif text_error.endswith("is not found"):
-        logger.warning(f"Command not found: '{text}', server: '{server}'")
-        await ctx.message.add_reaction("❓")
-
-    elif "required positional argument" in text_error:
-        await ctx.channel.send(f"Some arguments are missing: '{command_error.original}'")
-
-    else:
-        tb_text = traceback.format_exception(type(command_error), command_error, command_error.__traceback__)
-        tb_text = ''.join([line for line in tb_text if f'bot{os.path.sep}' in line])
-        logger.error(
-                f"No reaction for this error type:\n"
-                f"Command: '{ctx.message.content}', server: '{server}', \n"
-                f"'{command_error}'\n"
-                f"Partial traceback:\n{tb_text}")
-
-
-@bot.event
-async def on_member_join(member):
-    logger.info(f"{member} has joined {member.guild} ({member.guild.id})")
-    await member.guild.system_channel.send(f"Hello {member.mention}")
-
-
-@bot.event
-async def on_member_remove(member):
-    logger.info(f"{member} has left {member.guild} ({member.guild.id})")
-    await member.guild.system_channel.send(f"Bye {member.mention}")
 
 
 @bot.command(aliases=['hi'])
@@ -942,12 +973,12 @@ async def test_embed(ctx, *args, **kwargs):
     await ctx.send(embed=embed, content="content")
 
 
-async def custom_run(token):
-    logger.debug("Custom run")
-    await bot.login(token)
-    logger.debug("Logged in")
-    await bot.connect(reconnect=True)
-    logger.debug("Connected")
+# async def custom_run(token):
+#     logger.debug("Custom run")
+#     await bot.login(token)
+#     logger.debug("Logged in")
+#     await bot.connect(reconnect=True)
+#     logger.debug("Connected")
 
 
 if __name__ == "__main__":
