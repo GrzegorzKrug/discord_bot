@@ -169,7 +169,7 @@ def advanced_args(fun):
 
     async def f(ctx, *args, **kwargs):
         good_args = list()
-
+        user_pattern = re.compile(r"<@[!&]\w+>")
         if not kwargs:
             kwargs = {"force": False, "dry": False, "sudo": False}
 
@@ -196,9 +196,10 @@ def advanced_args(fun):
                     continue
                 if key and val:
                     kwargs.update({key: val})
+            elif user_pattern.match(arg):
+                pass
             else:
                 good_args.append(arg)
-
         good_args = tuple(good_args)
         output = await fun(ctx, *good_args, **kwargs)
         return output
@@ -344,8 +345,14 @@ def log_call(fun):
 
 @bot.event
 async def on_message(message):
+    if not message.guild:
+        recipient = message.channel.recipient.name
+        logger.debug(
+                f"(priv) {message.author.name}: {message.content} to {recipient if message.author == bot.user else 'Me'}")
+
     if message.author == bot.user:
         return None
+
     logger.warning(f"Prefix in on_message is constant")
     if bot.user in message.mentions and not message.content.startswith("!"):
         ch = message.channel
@@ -887,13 +894,38 @@ async def sweeper(ctx, *args):
 
 @bot.command()
 @log_call
+@advanced_args
 async def ask(ctx, *args, **kwargs):
-    raise NotImplementedError
+    users = []
+    text = []
+    for ar in args:
+        try:
+            user_id = int(ar)
+            user = await bot.get_user(user_id)
+            users.append(user)
+        except ValueError as err:
+            text.append(ar)
+        except TypeError as err:
+            text.append(ar)
+
+    if len(users) == 0 and len(ctx.message.mentions) > 0:
+        users = ctx.message.mentions
+
+    text = ' '.join(text)
+
+    for us in users:
+        try:
+            await us.send(text)
+        except Exception as err:
+            logger.error(err)
+            pass
 
 
 @bot.command(aliases=['czy', 'is', 'what', 'how'])
 @advanced_perm_check(is_not_priv)
 @log_call
+@my_help.help_decorator("Poll with maximum 10 answers. Minimum 2 answers, maximum 10. timeout is optional",
+                        "!poll question? ans1, ...")
 async def poll(ctx, *args, force=False, dry=False, timeout=120, **kwargs):
     """
     Multi choice poll with maximum 10 answers
@@ -923,7 +955,7 @@ async def poll(ctx, *args, force=False, dry=False, timeout=120, **kwargs):
     update_interval = 30 if 30 < timeout else timeout + 1
 
     if len(arr_text) < 3:
-        await ctx.send(f"Got less than 1 questions and 2 answers, sorry")
+        await ctx.send(f"Got less than 1 questions and 2 answers, use some delimiter ?;,")
         return None
 
     question, *answers = arr_text
@@ -1009,7 +1041,7 @@ async def poll(ctx, *args, force=False, dry=False, timeout=120, **kwargs):
             break
 
     embed.colour = finished_poll_color
-    await poll.edit(content='✅ Poll has ended', embed=embed)
+    await poll.edit(content='🔒 Poll has ended', embed=embed)
     await poll.clear_reaction("🛑")
 
 
