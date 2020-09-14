@@ -125,6 +125,7 @@ EMOJIS = {
         '10': '🔟'
 }
 RUDE = ['Why you bother me {0} ?!', 'Stop it {0}!', 'No, I do not like that {0}.', "Go away {0}."]
+GLOBAL_SERVERS = {755063230300160030, 755065402777796663, 755070497871364208, 755083175491010590}
 
 
 # @bot.command()
@@ -154,7 +155,10 @@ def is_priv(ctx, *args, **kwargs):
 
 
 def is_server_owner(ctx, *args, **kwargs):
-    if not ctx.guild.owner.id == ctx.author.id:
+    if not ctx.guild:
+        raise RestrictedError("This command is restricted to server.")
+
+    elif not ctx.guild.owner.id == ctx.author.id:
         raise RestrictedError("This command is restricted to server owner.")
     else:
         return True
@@ -514,7 +518,7 @@ async def on_message(message):
     if message.author == bot.user:
         return None
 
-    servers = {755063230300160030, 755065402777796663, 755070497871364208, 755083175491010590}
+    servers = GLOBAL_SERVERS.copy()
     if not message.content.startswith("!") and message.channel.id in servers:
         logger.warning(f"Fixed worldwide chat")
         logger.info(
@@ -629,14 +633,24 @@ async def on_member_remove(member):
 async def status(ctx, *args, **kwargs):
     # member = random.choice(ctx.guild.members)
     color = Colour.from_rgb(10, 180, 50)
-    embed = Embed(colour=color)
-    embed.set_thumbnail(url=bot.user.avatar_url)
-    embed.add_field(name=f"It's {ctx.guild.name}", value=f"This server has now {len(ctx.guild.members)} members")
-    await ctx.guild.system_channel.send(embed=embed)
+    embed = Embed(title=f"It's {ctx.guild.name}", colour=color)
+
+    embed.set_thumbnail(url=ctx.guild.icon_url)
+    embed.add_field(name="Members:", value=f"{len(ctx.guild.members)} ")
+    embed.add_field(name="Channels:", value=f"{len(ctx.guild.channels)}")
+
+    online = get_online_count(ctx.guild.members)
+    embed.add_field(name="Online:", value=f"{online}")
+    await ctx.send(embed=embed)
+
+
+def get_online_count(members):
+    online = [member for member in members if str(member.status) != 'offline']
+    return len(online)
 
 
 @bot.command(aliases=['purge'])
-@advanced_perm_check(is_server_owner)
+@advanced_perm_check(is_server_owner, is_not_priv)
 @log_call
 @my_help.help_decorator("Removes X messages", "!purge amount")
 async def purge_all(ctx, amount, *args, **kwargs):
@@ -664,7 +678,7 @@ async def purge_all(ctx, amount, *args, **kwargs):
 
 
 @bot.command()
-@advanced_perm_check(is_server_owner)
+@advanced_perm_check(is_server_owner, is_not_priv)
 @log_call
 @delete_call
 @my_help.help_decorator("Removes user X messages", "!purge_id user_id amount")
@@ -695,7 +709,7 @@ async def purge_id(ctx, authorid, amount, *args, **kwargs):
 
 
 @bot.command()
-@advanced_perm_check(is_server_owner)
+@advanced_perm_check(is_server_owner, is_not_priv)
 @log_call
 @delete_call
 @my_help.help_decorator("Removes only bot messages", "!purge_bot amount")
@@ -853,6 +867,15 @@ def board_to_monotext(board, el_size=2, distance_between=0,
     return text
 
 
+@bot.command(aliases=['global'])
+@advanced_perm_check(is_server_owner, is_not_priv)
+@log_call
+async def _global(ctx, key=None, *args, **kwargs):
+    if type(key) is str and key.lower() == "add":
+        GLOBAL_SERVERS.add(ctx.channel.id)
+        await ctx.send("Global is now here")
+
+
 @bot.command()
 @advanced_args
 @log_call
@@ -955,7 +978,10 @@ async def _help(ctx, cmd_key=None, *args, full=False, **kwargs):
 
     if command:
         if 'full' in args or type(full) is str and full.lower() == 'true':
-            embed.add_field(name=command['example'], value=f"```{command['full']}```")
+            value = command['full']
+            if not value:
+                value = command['simple']
+            embed.add_field(name=command['example'], value=f"```{value}```")
         else:
             embed.add_field(name=command['example'], value=command['simple'])
 
@@ -1227,7 +1253,7 @@ async def poll(ctx, *args, force=False, dry=False, timeout=120, **kwargs):
 @advanced_perm_check(is_not_priv)
 @log_call
 @my_help.help_decorator("Shoot somebody", "!shoot @user num")
-async def shoot(ctx, user, num=3, *args, force=False, dry=False, **kwargs):
+async def shoot(ctx, *args, force=False, dry=False, **kwargs):
     """
     Send message that mention somebody up to 10 times, and show gun with faces.
     Args:
@@ -1244,6 +1270,13 @@ async def shoot(ctx, user, num=3, *args, force=False, dry=False, **kwargs):
     """
     LIVE_EMOJIS = ['😀', '😃', '😁', '😕', '😟', '😒', '😩', '🥺', '😭', '😢', '😬', '😶']
     DEAD_EMOJIS = ['😵', '💀', '☠️', '👻']
+
+    try:
+        user = ctx.message.mentions[0].mention
+        num = args[0]
+    except IndexError:
+        user = args[0]
+        num = args[1]
 
     num = int(num)
     if num > 10 and not force:
