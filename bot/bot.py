@@ -354,19 +354,155 @@ def log_call(fun):
     return decorator
 
 
-def world_wide_format(message):
+def world_wide_format(message, msg_type=None):
+    """
+    Format message by selection.
+
+    Args:
+        msg_type: string
+            Up to 2000 characters:
+                plain - text only
+                tiny - icon and text
+                compact - icon, text, name
+                thick - text, title, footer, thumbnail
+
+            Up to 1024 characters:
+                field - field, text, footer, thumbnail
+
+            Up to 256 characters:
+                short - text, title, footer, thumbnail
+                big_short - icon, text, title, footer, thumbnail
+
+    Returns:
+
+    """
     message.content = message.content.replace("@everyone", "<ev>")
-    return f"**{message.author.name}**: `{message.content}`"
+    col = Colour.from_rgb(60, 150, 255)
+
+    if not msg_type or msg_type not in ['plain', 'tiny', 'compact', 'short', 'big_short', 'thick', 'field']:
+        msg_type = "normal"
+
+    if msg_type == "plain":
+        text = f"**{message.author.name}**: `{message.content}`"
+        embed = None
+
+    elif msg_type == "tiny":
+        embed = Embed(colour=col)
+        embed.set_footer(text=f"{message.author.name}: {message.content}", icon_url=message.author.avatar_url)
+        text = None
+
+    elif msg_type == "compact":
+        embed = Embed(colour=col)
+        embed.set_author(name=f"{message.author.name}:")
+        embed.set_footer(text=f"{message.content}", icon_url=message.author.avatar_url)
+        text = None
+
+    elif msg_type == "short":
+        embed = Embed(title=f"{message.content}", colour=col)
+        embed.set_author(name=f"{message.author.name}:")
+        embed.set_thumbnail(url=message.author.avatar_url)
+        text = None
+
+    elif msg_type == "big_short":
+        embed = Embed(title=message.content, colour=col)
+        embed.set_author(name=f"{message.author.name}:")
+        embed.set_thumbnail(url=message.author.avatar_url)
+        embed.set_footer(text=f"{message.guild.name}", icon_url=str(message.guild.icon_url))
+        text = None
+
+    elif msg_type == "thick":
+        embed = Embed(title=f"{message.author.name}:", colour=col)
+        embed.set_author(name=f"{message.guild.name}")
+        embed.set_footer(text=f"{message.content}")
+        embed.set_thumbnail(url=message.author.avatar_url)
+        text = None
+
+    elif msg_type == "field":
+        embed = Embed(colour=col)
+        embed.add_field(name=f"{message.author.name}:", value=message.content)
+        embed.set_footer(text=f"{message.guild.name}", icon_url=str(message.guild.icon_url))
+        embed.set_thumbnail(url=message.author.avatar_url)
+        text = None
+
+    elif msg_type == "custom":
+        raise NotImplementedError
+
+    else:
+        raise ValueError(f"Wrong world wide message type {msg_type}")
+
+    return text, embed
 
 
-def world_wide_embed(message):
-    message.content = message.content.replace("@everyone", "<ev>")
-    embed = Embed(title=message.content, colour=Colour.from_rgb(60, 150, 255))
-    embed.set_author(name=f"{message.author.name}:")
-    embed.set_footer(text=f"from: {message.guild.name}", icon_url=message.author.avatar_url)
-    # embed.set_thumbnail(url=message.author.avatar_url)
+@bot.command()
+@advanced_args
+@my_help.help_decorator("Show global messages examples", "!global_example message")
+async def global_examples(ctx, *args, **kwargs):
+    """
+    Format message by selection.
 
-    return embed
+    Args:
+        msg_type: string
+            Up to 2000 characters:
+                plain - text only
+                tiny - icon and text
+                compact - icon, text, name
+                thick - text, title, footer, thumbnail
+
+            Up to 1024 characters:
+                field - field, text, footer, thumbnail
+
+            Up to 256 characters:
+                short - text, title, footer, thumbnail
+                big_short - icon, text, title, footer, thumbnail
+
+    Returns:
+
+    """
+    message = ctx.message
+    message.content = ' '.join(str(ob) for ob in args)
+
+    try:
+        await ctx.send("plain")
+        text, embed = world_wide_format(ctx.message, "plain")
+        await ctx.send(text, embed=embed)
+    except Exception as err:
+        await ctx.send(str(err))
+
+    try:
+        text, embed = world_wide_format(ctx.message, "tiny")
+        await ctx.send("tiny", embed=embed)
+    except Exception as err:
+        await ctx.send(str(err))
+
+    try:
+        text, embed = world_wide_format(ctx.message, "compact")
+        await ctx.send("compact", embed=embed)
+    except Exception as err:
+        await ctx.send(str(err))
+
+    try:
+        text, embed = world_wide_format(ctx.message, "thick")
+        await ctx.send("thick", embed=embed)
+    except Exception as err:
+        await ctx.send(str(err))
+
+    try:
+        text, embed = world_wide_format(ctx.message, "field")
+        await ctx.send("field", embed=embed)
+    except Exception as err:
+        await ctx.send(str(err))
+
+    try:
+        text, embed = world_wide_format(ctx.message, "short")
+        await ctx.send("short", embed=embed)
+    except Exception as err:
+        await ctx.send(str(err))
+
+    try:
+        text, embed = world_wide_format(ctx.message, "big_short")
+        await ctx.send("big_short", embed=embed)
+    except Exception as err:
+        await ctx.send(str(err))
 
 
 @bot.event
@@ -385,7 +521,8 @@ async def on_message(message):
         logger.info(
                 f"world_wide chat: {message.author} '{message.content}' from chid: {message.channel.id}, {message.guild}")
         servers.remove(message.channel.id)
-        await _announcement(chids=servers, embed=world_wide_embed(message))
+        text, embed = world_wide_format(message, msg_type="field")
+        await _announcement(chids=servers, text=text, embed=embed)
         return None
 
     logger.warning(f"Prefix in on_message is constant")
@@ -808,7 +945,7 @@ async def hello(ctx, *args):
 @bot.command(aliases=['h', 'help'])
 @log_call
 @advanced_args
-async def _help(ctx, cmd_key=None, *args, **kwargs):
+async def _help(ctx, cmd_key=None, *args, full=False, **kwargs):
     embed = Embed(colour=Colour.from_rgb(60, 255, 150))
     embed.set_author(name=f"{bot.user.name} help menu")
 
@@ -818,11 +955,10 @@ async def _help(ctx, cmd_key=None, *args, **kwargs):
         command = None
 
     if command:
-        # if 'full' in args or type(full) is str and full.lower() == 'true':
-        #     print("printing true")
-        #     embed.add_field(name=command['example'], value=command['full'])
-        # else:
-        embed.add_field(name=command['example'], value=command['simple'])
+        if 'full' in args or type(full) is str and full.lower() == 'true':
+            embed.add_field(name=command['example'], value=f"```{command['full']}```")
+        else:
+            embed.add_field(name=command['example'], value=command['simple'])
 
     else:
         show_this = my_help.help_dict.items()
