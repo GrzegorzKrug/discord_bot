@@ -438,24 +438,23 @@ def world_wide_format(message, msg_type=None):
 @my_help.help_decorator("Show global messages examples", "!global_example message")
 async def global_examples(ctx, *args, **kwargs):
     """
-    Format message by selection.
+Examples used in global chat. Default 'field'
 
-    Args:
-        msg_type: string
-            Up to 2000 characters:
-                plain - text only
-                tiny - icon and text
-                compact - icon, text, name
-                thick - text, title, footer, thumbnail
+msg_type: string
+    Up to 2000 characters:
+    plain: text only
+    tiny: icon and text
+    compact: icon, text, name
+    thick: text, title, footer, picture
 
-            Up to 1024 characters:
-                field - field, text, footer, thumbnail
+    Up to 1024 characters:
+    field: field, text, footer, picture
 
-            Up to 256 characters:
-                short - text, title, footer, thumbnail
-                big_short - icon, text, title, footer, thumbnail
+    Up to 256 characters:
+    short: text, title, footer, picture
+    big_short: icon, text, title, footer, picture
 
-    Returns:
+Returns:
 
     """
     message = ctx.message
