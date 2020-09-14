@@ -356,7 +356,7 @@ def log_call(fun):
 
 def world_wide_format(message):
     message.content = message.content.replace("@everyone", "<ev>")
-    return f"{message.author.name} ({message.guild.name}): {message.content}"
+    return f"**{message.author.name}**: `{message.content}`"
 
 
 @bot.event
