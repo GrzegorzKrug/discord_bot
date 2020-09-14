@@ -127,12 +127,12 @@ EMOJIS = {
 RUDE = ['Why you bother me {0} ?!', 'Stop it {0}!', 'No, I do not like that {0}.', "Go away {0}."]
 
 
-@bot.command()
-@my_help.help_decorator("This is test function")
-async def test(ctx, *args):
-    member = ctx.author
-    logger.info(f"{member} has tested {member.guild} ({member.guild.id})")
-    await ctx.send("test success")
+# @bot.command()
+# @my_help.help_decorator("This is test function")
+# async def test(ctx, *args):
+#     member = ctx.author
+#     logger.info(f"{member} has tested {member.guild} ({member.guild.id})")
+#     await ctx.send("test success")
 
 
 class RestrictedError(PermissionError):
@@ -151,6 +151,17 @@ def is_priv(ctx, *args, **kwargs):
         raise RestrictedError("This command is restricted to private channels.")
     else:
         return True
+
+
+def is_server_owner(ctx, *args, **kwargs):
+    if not ctx.guild.owner.id == ctx.author.id:
+        raise RestrictedError("This command is restricted to server owner.")
+    else:
+        return True
+
+
+def this_is_disabled(*args, **kwargs):
+    raise RestrictedError("Command is disabled.")
 
 
 # @my_help.help_decorator("H: Advanced args")
@@ -331,16 +342,21 @@ def log_call(fun):
 
     async def decorator(ctx, *args, **kwargs):
         if ctx.guild:
-            guild = f"{ctx.guild.name} ({ctx.guild.id})"
+            where = f"#{ctx.channel}, {ctx.guild.name} ({ctx.guild.id})"
         else:
-            guild = 'private'
-        logger.info(f"Invo: '{ctx.message.content}', Args:{args}, Kwargs:{kwargs}. {ctx.channel}, {guild}")
+            where = f"{ctx.channel}"
+        logger.info(f"Invo: '{ctx.message.content}', Args:{args}, Kwargs:{kwargs}. {where}")
         message = await fun(ctx, *args, **kwargs)
         return message
 
     decorator.__name__ = fun.__name__
     decorator.__doc__ = fun.__doc__
     return decorator
+
+
+def world_wide_format(message):
+    message.content = message.content.replace("@everyone", "<ev>")
+    return f"{message.author.name} ({message.guild.name}): {message.content}"
 
 
 @bot.event
@@ -351,6 +367,15 @@ async def on_message(message):
                 f"(priv) {message.author.name}: {message.content} to {recipient if message.author == bot.user else 'Me'}")
 
     if message.author == bot.user:
+        return None
+
+    servers = {755063230300160030, 755065402777796663, 755070497871364208, 755083175491010590}
+    if not message.content.startswith("!") and message.channel.id in servers:
+        logger.warning(f"Fixed worldwide chat")
+        logger.info(
+                f"world_wide chat: {message.author} '{message.content}' from chid: {message.channel.id}, {message.guild}")
+        servers.remove(message.channel.id)
+        await _announcement(world_wide_format(message), servers)
         return None
 
     logger.warning(f"Prefix in on_message is constant")
@@ -385,10 +410,10 @@ async def announce(ctx, message):
     raise NotImplementedError
 
 
-async def _announcement(message, chids=None):
+async def _announcement(text, chids=None):
     for ch in chids:
         channel = bot.get_channel(ch)
-        await channel.send(message)
+        await channel.send(text)
         await asyncio.sleep(0.01)
 
 
@@ -453,18 +478,19 @@ async def on_member_remove(member):
 
 @bot.command()
 @log_call
-@my_help.help_decorator("This command for checking status")
-async def status(ctx, *args):
-    member = random.choice(ctx.guild.members)
+@my_help.help_decorator("You can check how many users is on server")
+@advanced_perm_check(is_not_priv)
+async def status(ctx, *args, **kwargs):
+    # member = random.choice(ctx.guild.members)
     color = Colour.from_rgb(10, 180, 50)
     embed = Embed(colour=color)
-    embed.set_thumbnail(url=member.avatar_url)
-    embed.add_field(name=f"It's {member.name}", value=f"This server has now {len(member.guild.members)} members")
-    await member.guild.system_channel.send(embed=embed)
+    embed.set_thumbnail(url=bot.user.avatar_url)
+    embed.add_field(name=f"It's {ctx.guild.name}", value=f"This server has now {len(ctx.guild.members)} members")
+    await ctx.guild.system_channel.send(embed=embed)
 
 
 @bot.command(aliases=['purge'])
-@advanced_perm_check()
+@advanced_perm_check(is_server_owner)
 @log_call
 @my_help.help_decorator("Removes X messages", "!purge amount")
 async def purge_all(ctx, amount, *args, **kwargs):
@@ -492,7 +518,7 @@ async def purge_all(ctx, amount, *args, **kwargs):
 
 
 @bot.command()
-@advanced_perm_check()
+@advanced_perm_check(is_server_owner)
 @log_call
 @delete_call
 @my_help.help_decorator("Removes user X messages", "!purge_id user_id amount")
@@ -523,7 +549,7 @@ async def purge_id(ctx, authorid, amount, *args, **kwargs):
 
 
 @bot.command()
-@advanced_perm_check()
+@advanced_perm_check(is_server_owner)
 @log_call
 @delete_call
 @my_help.help_decorator("Removes only bot messages", "!purge_bot amount")
@@ -543,6 +569,7 @@ async def purge_bot(ctx, amount, *args, **kwargs):
 @bot.command()
 @advanced_perm_check(is_not_priv)
 @log_call
+@my_help.help_decorator("Interactive mini game. No borders on sides. Get to end.", "!slipper (height)")
 async def slipper(ctx, dimy=10, dimx=6, *args, **kwargs):
     """!slipper, mini game"""
     game_controls = ['⬅️', '➡', '⬆️', '⬇️', '🔁']
@@ -708,7 +735,8 @@ async def private(ctx):
 
 @bot.command()
 @log_call
-async def spam(ctx, num=1):
+@advanced_perm_check(this_is_disabled)
+async def spam(ctx, num=1, *args, **kwargs):
     num = int(num)
     if num > 100:
         num = 100
@@ -802,7 +830,7 @@ async def _help(ctx, cmd_key=None, *args, **kwargs):
 @delete_call
 @advanced_perm_check(is_not_priv)
 @log_call
-@my_help.help_decorator("Countdown message", "!countdown num")
+@advanced_perm_check(this_is_disabled)
 async def countdown(ctx, num=10, dry=False, force=False, **kwargs):
     try:
         num = int(num)
@@ -894,22 +922,27 @@ async def sweeper(ctx, *args):
 
 @bot.command()
 @log_call
-@advanced_args
+@advanced_perm_check(this_is_disabled)
 async def ask(ctx, *args, **kwargs):
     users = []
     text = []
     for ar in args:
         try:
             user_id = int(ar)
-            user = await bot.get_user(user_id)
-            users.append(user)
+            user = bot.get_user(user_id)
+            if user:
+                users.append(user)
+            else:
+                text.append(ar)
+
         except ValueError as err:
             text.append(ar)
         except TypeError as err:
+            logger.error(f"Type error in ask, {err}")
             text.append(ar)
-
-    if len(users) == 0 and len(ctx.message.mentions) > 0:
-        users = ctx.message.mentions
+    users = set(users)
+    if len(ctx.message.mentions) > 0:
+        users.add(*ctx.message.mentions)
 
     text = ' '.join(text)
 
