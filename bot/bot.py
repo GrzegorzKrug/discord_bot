@@ -66,21 +66,52 @@ def define_logger(name="Logger", log_level="DEBUG",
     # Add handlers to logger
     logger.addHandler(fh)
     logger.addHandler(ch)
-    logger.propagate = False
+    logger.propagate = False  # this prevents other loggers I thinks from logging
 
     return logger
 
 
-def is_not_priv(ctx, *args, **kwargs):
-    if ctx.guild:
-        return True
-    else:
-        return False
+class Help:
+    def __init__(self):
+        self.temp_help_arr = []
+        self.help_dict = {}
 
+    def create_help_dict(self):
+        help_dict = {key: {"simple": simple, "example": example, "full": full_doc}
+                     for command_ob in self.temp_help_arr for key, simple, example, full_doc in command_ob}
+        self.help_dict = help_dict
+        self.temp_help_arr = []
+
+    def help_decorator(self, simple, example=None):
+        _help = []
+
+        def wrapper(function):
+            async def f(*args, **kwargs):
+                # f.__help__ = simple
+                value = await function(*args, **kwargs)
+                return value
+
+            if example is None:
+                _example = f"!{function.__name__}"
+            else:
+                _example = example
+            full_doc = function.__doc__
+            _help.append((function.__name__, simple, _example, full_doc))
+
+            f.__name__ = function.__name__
+            f.__doc__ = function.__doc__
+
+            return f
+
+        self.temp_help_arr.append(_help)
+        return wrapper
+
+
+my_help = Help()
 
 logger = define_logger("Bot")
 
-bot = Bot(command_prefix='!', case_insensitive=True)
+bot = Bot(command_prefix='!', case_insensitive=True, help_command=None)
 EMOJIS = {
         '1': '1️⃣',
         '2': '2️⃣',
@@ -96,6 +127,35 @@ EMOJIS = {
 RUDE = ['Why you bother me {0} ?!', 'Stop it {0}!', 'No, I do not like that {0}.', "Go away {0}."]
 
 
+@bot.command()
+@my_help.help_decorator("This is test function")
+async def test(ctx, *args):
+    member = ctx.author
+    logger.info(f"{member} has tested {member.guild} ({member.guild.id})")
+    await ctx.send("test success")
+
+
+class RestrictedError(PermissionError):
+    pass
+
+
+def is_not_priv(ctx, *args, **kwargs):
+    if ctx.guild:
+        return True
+    else:
+        raise RestrictedError("This command is restricted to server channels.")
+
+
+def is_priv(ctx, *args, **kwargs):
+    if ctx.guild:
+        raise RestrictedError("This command is restricted to private channels.")
+    else:
+        return True
+
+
+# @my_help.help_decorator("H: Advanced args")
+
+
 def advanced_args(fun):
     """
     Decorator that translates args to create flags and converts string into kwargs.
@@ -105,13 +165,14 @@ def advanced_args(fun):
     Returns:
         message object returned by calling given function with given params
     """
+    logger.warning(f"Advanced args are not supporting non kwargs functions")
 
-    async def wrapper(ctx, *args, **kwargs):
+    async def f(ctx, *args, **kwargs):
         good_args = list()
-        # force = False
-        # dry = False
+
         if not kwargs:
             kwargs = {"force": False, "dry": False, "sudo": False}
+
         for arg in args:
             if arg.startswith("-f"):
                 "force, enforce parameters"
@@ -142,8 +203,9 @@ def advanced_args(fun):
         output = await fun(ctx, *good_args, **kwargs)
         return output
 
-    wrapper.__name__ = fun.__name__
-    return wrapper
+    f.__name__ = fun.__name__
+    f.__doc__ = fun.__doc__
+    return f
 
 
 def check_sudo_permission(ctx):
@@ -183,23 +245,6 @@ def advanced_perm_check(*checking_funs):
         return f
 
     return decorator
-
-
-@bot.command()
-async def test(ctx, *args):
-    member = ctx.author
-    logger.info(f"{member} has joined {member.guild} ({member.guild.id})")
-
-    color = Colour.from_rgb(10, 180, 50)
-    embed = Embed(colour=color)
-    embed.set_thumbnail(url=member.avatar_url)
-    embed.add_field(name=f"Hello, {member.name}", value=f"This server has now {len(member.guild.members)} members")
-    await member.guild.system_channel.send(f"Hello {member.mention}", embed=embed)
-
-
-@bot.command()
-async def announce(ctx, message):
-    raise NotImplementedError
 
 
 def delete_call(fun):
@@ -289,7 +334,6 @@ def log_call(fun):
         else:
             guild = 'private'
         logger.info(f"Invo: '{ctx.message.content}', Args:{args}, Kwargs:{kwargs}. {ctx.channel}, {guild}")
-
         message = await fun(ctx, *args, **kwargs)
         return message
 
@@ -329,6 +373,11 @@ async def close():
     logger.debug(f"Going offline")
 
 
+@bot.command()
+async def announce(ctx, message):
+    raise NotImplementedError
+
+
 async def _announcement(message, chids=None):
     for ch in chids:
         channel = bot.get_channel(ch)
@@ -342,14 +391,23 @@ async def on_command_error(ctx, command_error):
     invoked = ctx.invoked_with
     text_error = str(command_error)
     server = "private_message" if not ctx.guild else f"{ctx.guild} ({ctx.guild.id})"
+    logger.warning(f"Bot is always telling about restricted command")
+    logger.warning(f"Bot is always telling about no permission")
+    logger.warning(f"Bot is using ! as static prefix in errors")
+
     if text_error.startswith("The check functions for command") or text_error.startswith("No permission"):
         logger.warning(f"No permission: '{text}', server: '{server}'")
         await ctx.message.add_reaction("⛔")
-        await ctx.channel.send(f"Some permissions do not allow it to run here '{invoked}'")
+        await ctx.channel.send(f"Some permissions do not allow it to run here '!{invoked}'")
 
     elif text_error.endswith("is not found"):
         logger.warning(f"Command not found: '{text}', server: '{server}'")
         await ctx.message.add_reaction("❓")
+
+    elif text_error.startswith("Command raised an exception: RestrictedError"):
+        logger.warning(f"Restricted usage: '{text}', server: '{server}'")
+        await ctx.message.add_reaction("⛔")
+        await ctx.channel.send(f"{command_error.original} '!{invoked}'")
 
     elif "required positional argument" in text_error:
         await ctx.channel.send(f"Some arguments are missing: '{command_error.original}'")
@@ -386,12 +444,25 @@ async def on_member_remove(member):
     await member.guild.system_channel.send(f"Bye {member.mention}", embed=embed)
 
 
+@bot.command()
+@log_call
+@my_help.help_decorator("This command for checking status")
+async def status(ctx, *args):
+    member = random.choice(ctx.guild.members)
+    color = Colour.from_rgb(10, 180, 50)
+    embed = Embed(colour=color)
+    embed.set_thumbnail(url=member.avatar_url)
+    embed.add_field(name=f"It's {member.name}", value=f"This server has now {len(member.guild.members)} members")
+    await member.guild.system_channel.send(embed=embed)
+
+
 @bot.command(aliases=['purge'])
 @advanced_perm_check()
 @log_call
+@my_help.help_decorator("Removes X messages", "!purge amount")
 async def purge_all(ctx, amount, *args, **kwargs):
     """
-    !purge amount, removes all messages
+    Removes messages in given channel
     Args:
         ctx:
         amount:
@@ -417,6 +488,7 @@ async def purge_all(ctx, amount, *args, **kwargs):
 @advanced_perm_check()
 @log_call
 @delete_call
+@my_help.help_decorator("Removes user X messages", "!purge_id user_id amount")
 async def purge_id(ctx, authorid, amount, *args, **kwargs):
     """
     !purge id amount, removes all messages sent by author,
@@ -447,6 +519,7 @@ async def purge_id(ctx, authorid, amount, *args, **kwargs):
 @advanced_perm_check()
 @log_call
 @delete_call
+@my_help.help_decorator("Removes only bot messages", "!purge_bot amount")
 async def purge_bot(ctx, amount, *args, **kwargs):
     channel = ctx.channel
     num = int(amount)
@@ -464,6 +537,7 @@ async def purge_bot(ctx, amount, *args, **kwargs):
 @advanced_perm_check(is_not_priv)
 @log_call
 async def slipper(ctx, dimy=10, dimx=6, *args, **kwargs):
+    """!slipper, mini game"""
     game_controls = ['⬅️', '➡', '⬆️', '⬇️', '🔁']
     translate = {'⬅️': 'left', '➡': 'right', '⬆️': 'up', '⬇️': 'down', '🔁': 'restart'}
     message = await ctx.send("Let's start the game.")
@@ -612,6 +686,7 @@ async def eft(ctx, *keyword, dry=False, **kwargs):
 
 @bot.command()
 @log_call
+@advanced_perm_check(is_priv)
 async def private(ctx):
     """
     Hello in private channel
@@ -631,7 +706,7 @@ async def spam(ctx, num=1):
     if num > 100:
         num = 100
     for x in range(num):
-        await ctx.channel.send(x + 1)
+        await ctx.channel.send(random.randint(0, num))
         await asyncio.sleep(0.01)
 
 
@@ -685,10 +760,42 @@ async def hello(ctx, *args):
     await ctx.send(text.format(ctx.message.author.name))
 
 
+@bot.command(aliases=['h', 'help'])
+@log_call
+@advanced_args
+async def _help(ctx, cmd_key=None, *args, **kwargs):
+    embed = Embed(colour=Colour.from_rgb(60, 255, 150))
+    embed.set_author(name=f"{bot.user.name} help menu")
+
+    if cmd_key:
+        command = my_help.help_dict.get(cmd_key, None)
+    else:
+        command = None
+
+    if command:
+        # if 'full' in args or type(full) is str and full.lower() == 'true':
+        #     print("printing true")
+        #     embed.add_field(name=command['example'], value=command['full'])
+        # else:
+        embed.add_field(name=command['example'], value=command['simple'])
+
+    else:
+        show_this = my_help.help_dict.items()
+
+        for cmd, value in show_this:
+            simple_text = value['simple']
+            example = value['example']
+            embed.add_field(name=example, value=f"{simple_text}")
+
+    embed.set_thumbnail(url=bot.user.avatar_url)
+    await ctx.send(embed=embed)
+
+
 @bot.command()
 @delete_call
 @advanced_perm_check(is_not_priv)
 @log_call
+@my_help.help_decorator("Countdown message", "!countdown num")
 async def countdown(ctx, num=10, dry=False, force=False, **kwargs):
     try:
         num = int(num)
@@ -701,7 +808,6 @@ async def countdown(ctx, num=10, dry=False, force=False, **kwargs):
         logger.error(f"Countdown incorrect arg: {num}")
         num = 5
 
-    # chid = 750696820736393261
     channel = ctx.channel
     if not dry:
         msg_countdown = await channel.send(f"Time left: {num}")
@@ -716,6 +822,7 @@ async def countdown(ctx, num=10, dry=False, force=False, **kwargs):
 @bot.command()
 @delete_call
 @log_call
+@my_help.help_decorator("Sweeper game, don't blow it up", "!sweeper (size) (bombs)")
 async def sweeper(ctx, *args):
     """
     Generates sweeper game, !sweeper (size) (bombs)
@@ -747,7 +854,7 @@ async def sweeper(ctx, *args):
     elif size > 14:
         size = 14
 
-    "Check bomb ammount"
+    "Check bomb amount"
     fields = size * size
     if bombs is None or bombs < 0:
         bombs = size * size // 3.5
@@ -791,8 +898,8 @@ async def poll(ctx, *args, force=False, dry=False, timeout=120, **kwargs):
     """
     Multi choice poll with maximum 10 answers
     Example `!poll Question, answer1, answer2, .... answer10`
-    Available delimeters: . ; ,
-    You can add more time with `timeout=200`, default 120, maxiumum is 1200 (20 min)
+    Available delimiters: . ; ,
+    You can add more time with `timeout=200`, default 120, maximum is 1200 (20 min)
     Use `-d` for dryrun
     Args:
         ctx:
@@ -812,6 +919,8 @@ async def poll(ctx, *args, force=False, dry=False, timeout=120, **kwargs):
     timeout = float(timeout)
     if timeout > 1200 and not force:
         timeout = 1200
+
+    update_interval = 30 if 30 < timeout else timeout + 1
 
     if len(arr_text) < 3:
         await ctx.send(f"Got less than 1 questions and 2 answers, sorry")
@@ -860,7 +969,7 @@ async def poll(ctx, *args, force=False, dry=False, timeout=120, **kwargs):
     while time.time() <= end_time:
         end_loop = False
         try:
-            reaction, message = await bot.wait_for('reaction_add', check=check_end_reaction, timeout=30)
+            reaction, message = await bot.wait_for('reaction_add', check=check_end_reaction, timeout=update_interval)
             end_loop = True
         except asyncio.TimeoutError as err:
             pass
@@ -898,7 +1007,8 @@ async def poll(ctx, *args, force=False, dry=False, timeout=120, **kwargs):
         await asyncio.sleep(0.01)
         if end_loop:
             break
-    embed.color = finished_poll_color
+
+    embed.colour = finished_poll_color
     await poll.edit(content='✅ Poll has ended', embed=embed)
     await poll.clear_reaction("🛑")
 
@@ -906,7 +1016,22 @@ async def poll(ctx, *args, force=False, dry=False, timeout=120, **kwargs):
 @bot.command()
 @advanced_perm_check(is_not_priv)
 @log_call
+@my_help.help_decorator("Shoot somebody", "!shoot @user num")
 async def shoot(ctx, user, num=3, *args, force=False, dry=False, **kwargs):
+    """
+    Send message that mention somebody up to 10 times, and show gun with faces.
+    Args:
+        ctx:
+        user:
+        num:
+        *args:
+        force:
+        dry:
+        **kwargs:
+
+    Returns:
+
+    """
     LIVE_EMOJIS = ['😀', '😃', '😁', '😕', '😟', '😒', '😩', '🥺', '😭', '😢', '😬', '😶']
     DEAD_EMOJIS = ['😵', '💀', '☠️', '👻']
 
@@ -989,6 +1114,8 @@ if __name__ == "__main__":
         print(f"{e}")
         sys.exit(1)
 
+    my_help.create_help_dict()
+    # print(my_help.help_dict)
     os.makedirs("avatars", exist_ok=True)
     bot.run(token)
     # asyncio.run(custom_run(token))
