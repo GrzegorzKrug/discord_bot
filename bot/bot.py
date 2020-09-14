@@ -359,6 +359,16 @@ def world_wide_format(message):
     return f"**{message.author.name}**: `{message.content}`"
 
 
+def world_wide_embed(message):
+    message.content = message.content.replace("@everyone", "<ev>")
+    embed = Embed(title=message.content, colour=Colour.from_rgb(60, 150, 255))
+    embed.set_author(name=f"{message.author.name}:")
+    embed.set_footer(text=f"from: {message.guild.name}", icon_url=message.author.avatar_url)
+    # embed.set_thumbnail(url=message.author.avatar_url)
+
+    return embed
+
+
 @bot.event
 async def on_message(message):
     if not message.guild:
@@ -375,7 +385,7 @@ async def on_message(message):
         logger.info(
                 f"world_wide chat: {message.author} '{message.content}' from chid: {message.channel.id}, {message.guild}")
         servers.remove(message.channel.id)
-        await _announcement(world_wide_format(message), servers)
+        await _announcement(chids=servers, embed=world_wide_embed(message))
         return None
 
     logger.warning(f"Prefix in on_message is constant")
@@ -391,7 +401,7 @@ async def on_message(message):
 async def on_ready():
     act = Game(name="!sweeper.", url='Fancy url', type=0)
     await bot.change_presence(activity=act, status=Status.online)
-    await _announcement("✅ Hey, i'm now online.", [750696820736393261])
+    await _announcement([750696820736393261], "✅ Hey, i'm now online.")
     logger.warning(f"On ready announcement is constant")
     logger.debug(f"Going online as {bot.user.name}")
 
@@ -400,7 +410,7 @@ async def on_ready():
 async def close():
     act = Game(name="Zzzzzzz....", type=2)
     await bot.change_presence(activity=act, status=Status.offline)
-    await _announcement("💤 Sorry, I am going offline.", [750696820736393261])
+    await _announcement([750696820736393261], "💤 Sorry, I am going offline.")
     logger.warning(f"close announcement is constant")
     logger.debug(f"Going offline")
 
@@ -410,10 +420,10 @@ async def announce(ctx, message):
     raise NotImplementedError
 
 
-async def _announcement(text, chids=None):
+async def _announcement(chids=None, text=None, embed=None):
     for ch in chids:
         channel = bot.get_channel(ch)
-        await channel.send(text)
+        await channel.send(text, embed=embed)
         await asyncio.sleep(0.01)
 
 
