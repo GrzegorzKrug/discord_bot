@@ -414,20 +414,20 @@ def log_call(fun):
 
 @bot.command(aliases=["invite_bot", "invite_me", 'join'])
 @log_call
-@my_help.help_decorator("Command to get bot invitation link", "!invite (here)")
+@my_help.help_decorator("Command to get bot invitation link", "!invite (priv)")
 async def invite(ctx, *args):
     url_invite = r"https://discord.com/api/oauth2/authorize?client_id=750688123008319628&permissions=470019283&scope=bot"
-    embed = Embed(title=f"Invitation", url=url_invite)
+    embed = Embed(title=f"Invite me!", url=url_invite)
     embed.set_author(name=f"{bot.user.name}", icon_url=bot.user.avatar_url)
     embed.add_field(name="About", value=f"This bot is awesome")
     embed.set_thumbnail(url=bot.user.avatar_url)
 
-    if "here" in args:
+    if not "priv" in args:
         await ctx.send(f"Here is my invitation:", embed=embed)
         await ctx.message.add_reaction("✅")
     else:
         await ctx.author.send(f"Here is my invitation:", embed=embed)
-        await ctx.send(f"✅ Bot invite sent to {ctx.author.mention}.")
+        await ctx.send(f"✅ Invite sent to {ctx.author.mention}.")
 
 
 @bot.command(aliases=["bot"])
@@ -435,9 +435,12 @@ async def invite(ctx, *args):
 @my_help.help_decorator("about bot", "!invite (here)")
 async def about(ctx, *args):
     url_invite = r"https://discord.com/api/oauth2/authorize?client_id=750688123008319628&permissions=470019283&scope=bot"
-    embed = Embed(title=f"About bot", url=url_invite)
+    embed = Embed(title=f"Invite me!", url=url_invite)
     embed.set_author(name=f"{bot.user.name}", icon_url=bot.user.avatar_url)
-    embed.add_field(name="About", value=f"This bot is awesome")
+    embed.add_field(name="Me", value=f"I am awesome, and got plenty of features", inline=False)
+    embed.add_field(name="Customize", value=f"You are free to customise bot", inline=False)
+    embed.add_field(name="Global-chat", value=f"Use this bot speak with different servers", inline=False)
+    embed.add_field(name="!help", value=f"Get help menu", inline=False)
     embed.set_thumbnail(url=bot.user.avatar_url)
 
     await ctx.send(embed=embed)
