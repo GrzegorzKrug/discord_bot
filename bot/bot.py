@@ -125,7 +125,7 @@ EMOJIS = {
         '10': '🔟'
 }
 RUDE = ['Why you bother me {0} ?!', 'Stop it {0}!', 'No, I do not like that {0}.', "Go away {0}."]
-GLOBAL_SERVERS = {755063230300160030, 755065402777796663, 755070497871364208, 755083175491010590}
+GLOBAL_SERVERS = {755063230300160030, 755065402777796663, 755083175491010590}
 
 
 # @bot.command()
@@ -371,7 +371,8 @@ def world_wide_format(message, msg_type=None):
                 thick - text, title, footer, thumbnail
 
             Up to 1024 characters:
-                field - field, text, footer, thumbnail
+                field - field, text, thumbnail
+                field_ft - field, text, footer, thumbnail
 
             Up to 256 characters:
                 short - text, title, footer, thumbnail
@@ -383,11 +384,12 @@ def world_wide_format(message, msg_type=None):
     message.content = message.content.replace("@everyone", "<ev>")
     col = Colour.from_rgb(60, 150, 255)
 
-    if not msg_type or msg_type not in ['plain', 'tiny', 'compact', 'short', 'big_short', 'thick', 'field']:
+    if not msg_type or msg_type not in ['plain', 'tiny', 'compact', 'short', 'field_ft', 'big_short', 'thick', 'field',
+                                        'code']:
         msg_type = "normal"
 
     if msg_type == "plain":
-        text = f"**{message.author.name}**: `{message.content}`"
+        text = f"**{message.author.name}**: {message.content}"
         embed = None
 
     elif msg_type == "tiny":
@@ -424,8 +426,23 @@ def world_wide_format(message, msg_type=None):
     elif msg_type == "field":
         embed = Embed(colour=col)
         embed.add_field(name=f"{message.author.name}:", value=message.content)
+        # embed.set_footer(text=f"{message.guild.name}", icon_url=str(message.guild.icon_url))
+        embed.set_thumbnail(url=message.author.avatar_url)
+        text = None
+
+    elif msg_type == "field_ft":
+        embed = Embed(colour=col)
+        embed.add_field(name=f"{message.author.name}:", value=message.content)
         embed.set_footer(text=f"{message.guild.name}", icon_url=str(message.guild.icon_url))
         embed.set_thumbnail(url=message.author.avatar_url)
+        text = None
+
+    elif msg_type == "code":
+        embed = Embed(colour=col, description=message.content)
+        embed.set_author(name=f"{message.author.name}:")
+        embed.set_footer(text=f"{message.guild.name}", icon_url=str(message.guild.icon_url))
+        embed.set_thumbnail(url=message.author.avatar_url)
+        # embed.description(description=message.content)
         text = None
 
     elif msg_type == "custom":
@@ -439,7 +456,8 @@ def world_wide_format(message, msg_type=None):
 
 @bot.command()
 @advanced_args
-@my_help.help_decorator("Show global messages examples", "!global_example message")
+@my_help.help_decorator("Show global messages examples", "!global_example")
+@log_call
 async def global_examples(ctx, *args, **kwargs):
     """
 Examples used in global chat. Default 'field'
@@ -461,8 +479,19 @@ msg_type: string
 Returns:
 
     """
+
+    just_text = """Hello there, this is an example showing all messages"""
+    code_text = """```py
+            try:
+                text, embed = world_wide_format(ctx.message, "field")
+                await ctx.send("field", embed=embed)
+            except Exception as err:
+                await ctx.send(str(err))
+        ```"""
+
     message = ctx.message
-    message.content = ' '.join(str(ob) for ob in args)
+    message.content = "This is limited to 2000 characters. " + just_text
+    message.author = bot.get_user(147795752943353856)
 
     try:
         await ctx.send("plain")
@@ -471,6 +500,15 @@ Returns:
     except Exception as err:
         await ctx.send(str(err))
 
+    message.content = "This is limited to 2000 characters. " + code_text
+    try:
+        await ctx.send("plain")
+        text, embed = world_wide_format(ctx.message, "plain")
+        await ctx.send(text, embed=embed)
+    except Exception as err:
+        await ctx.send(str(err))
+
+    message.content = "This is limited to 2000 characters. " + just_text
     try:
         text, embed = world_wide_format(ctx.message, "tiny")
         await ctx.send("tiny", embed=embed)
@@ -489,12 +527,26 @@ Returns:
     except Exception as err:
         await ctx.send(str(err))
 
+    message.content = "This is limited to 1000 characters. " + code_text
     try:
         text, embed = world_wide_format(ctx.message, "field")
         await ctx.send("field", embed=embed)
     except Exception as err:
         await ctx.send(str(err))
+    try:
+        text, embed = world_wide_format(ctx.message, "field_ft")
+        await ctx.send("field_ft", embed=embed)
+    except Exception as err:
+        await ctx.send(str(err))
 
+    message.content = "This is limited to 2000 characters. " + code_text
+    try:
+        text, embed = world_wide_format(ctx.message, "code")
+        await ctx.send("code", embed=embed)
+    except Exception as err:
+        await ctx.send(str(err))
+
+    message.content = just_text + "\n This is limited to 254 characters"
     try:
         text, embed = world_wide_format(ctx.message, "short")
         await ctx.send("short", embed=embed)
@@ -515,16 +567,18 @@ async def on_message(message):
         logger.debug(
                 f"(priv) {message.author.name}: {message.content} to {recipient if message.author == bot.user else 'Me'}")
 
-    if message.author == bot.user:
+    if message.author.bot:
         return None
 
     servers = GLOBAL_SERVERS.copy()
     if not message.content.startswith("!") and message.channel.id in servers:
         logger.warning(f"Fixed worldwide chat")
-        logger.info(
-                f"world_wide chat: {message.author} '{message.content}' from chid: {message.channel.id}, {message.guild}")
+        logger.debug(
+                f"world_wide message:\n"
+                f"{message.author}  from chid: {message.channel.id}, {message.guild}\n"
+                f"'{message.content}'")
         servers.remove(message.channel.id)
-        text, embed = world_wide_format(message, msg_type="field")
+        text, embed = world_wide_format(message, msg_type="code")
         await _announcement(chids=servers, text=text, embed=embed)
         return None
 
@@ -874,6 +928,12 @@ async def _global(ctx, key=None, *args, **kwargs):
     if type(key) is str and key.lower() == "add":
         GLOBAL_SERVERS.add(ctx.channel.id)
         await ctx.send("Global is now here")
+    elif type(key) is str and key.lower() == "remove":
+        try:
+            GLOBAL_SERVERS.remove(ctx.channel.id)
+        except ValueError:
+            pass
+        await ctx.send("Global channel has been removed")
 
 
 @bot.command()
