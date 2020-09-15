@@ -417,13 +417,30 @@ def log_call(fun):
 @my_help.help_decorator("Command to get bot invitation link", "!invite (here)")
 async def invite(ctx, *args):
     url_invite = r"https://discord.com/api/oauth2/authorize?client_id=750688123008319628&permissions=470019283&scope=bot"
+    embed = Embed(title=f"Invitation", url=url_invite)
+    embed.set_author(name=f"{bot.user.name}", icon_url=bot.user.avatar_url)
+    embed.add_field(name="About", value=f"This bot is awesome")
+    embed.set_thumbnail(url=bot.user.avatar_url)
+
     if "here" in args:
-        await ctx.send(f"This is my invitation:\n{url_invite}")
+        await ctx.send(f"Here is my invitation:", embed=embed)
         await ctx.message.add_reaction("✅")
     else:
-        await ctx.author.send(f"Here is my invitation link: {url_invite}")
+        await ctx.author.send(f"Here is my invitation:", embed=embed)
         await ctx.send(f"✅ Bot invite sent to {ctx.author.mention}.")
-    # await ctx.send(f"Bot invite sent.")
+
+
+@bot.command(aliases=["bot"])
+@log_call
+@my_help.help_decorator("about bot", "!invite (here)")
+async def about(ctx, *args):
+    url_invite = r"https://discord.com/api/oauth2/authorize?client_id=750688123008319628&permissions=470019283&scope=bot"
+    embed = Embed(title=f"About bot", url=url_invite)
+    embed.set_author(name=f"{bot.user.name}", icon_url=bot.user.avatar_url)
+    embed.add_field(name="About", value=f"This bot is awesome")
+    embed.set_thumbnail(url=bot.user.avatar_url)
+
+    await ctx.send(embed=embed)
 
 
 def world_wide_format(message, msg_type=None):
@@ -452,8 +469,8 @@ def world_wide_format(message, msg_type=None):
 
     col = Colour.from_rgb(60, 150, 255)
 
-    if not msg_type or msg_type not in ['plain', 'tiny', 'compact', 'short', 'field_ft', 'big_short', 'thick', 'field',
-                                        'code']:
+    if not msg_type or msg_type not in ['plain', 'tiny', 'compact', 'short', 'big_short', 'thick',
+                                        'code', 'code_big']:
         msg_type = "normal"
 
     if msg_type == "plain":
@@ -469,8 +486,15 @@ def world_wide_format(message, msg_type=None):
     elif msg_type == "compact":
         message.content = string_mention_converter(message.guild, message.content, bold=False)
         embed = Embed(colour=col)
-        embed.set_author(name=f"{message.author.name}:")
-        embed.set_footer(text=f"{message.content}", icon_url=message.author.avatar_url)
+        embed.set_author(name=f"{message.author.name}:", icon_url=message.author.avatar_url)
+        embed.set_footer(text=f"{message.content}")
+        text = None
+
+    elif msg_type == "normal":
+        message.content = string_mention_converter(message.guild, message.content, bold=False)
+        embed = Embed(colour=col, description=message.content)
+        embed.set_author(name=f"{message.author.name}:", icon_url=message.author.avatar_url)
+        # embed.set_footer(text=f"{message.content}")
         text = None
 
     elif msg_type == "short":
@@ -491,34 +515,43 @@ def world_wide_format(message, msg_type=None):
     elif msg_type == "thick":
         message.content = string_mention_converter(message.guild, message.content, bold=False)
         embed = Embed(title=f"{message.author.name}:", colour=col)
-        embed.set_author(name=f"{message.guild.name}")
+        embed.set_author(name=f"{message.guild.name}", icon_url=message.guild.icon_url)
         embed.set_footer(text=f"{message.content}")
         embed.set_thumbnail(url=message.author.avatar_url)
         text = None
 
-    elif msg_type == "field":
-        message.content = string_mention_converter(message.guild, message.content, bold=True)
-        embed = Embed(colour=col)
-        embed.add_field(name=f"{message.author.name}:", value=message.content)
-        # embed.set_footer(text=f"{message.guild.name}", icon_url=str(message.guild.icon_url))
-        embed.set_thumbnail(url=message.author.avatar_url)
-        text = None
-
-    elif msg_type == "field_ft":
-        message.content = string_mention_converter(message.guild, message.content, bold=True)
-        embed = Embed(colour=col)
-        embed.add_field(name=f"{message.author.name}:", value=message.content)
-        embed.set_footer(text=f"{message.guild.name}", icon_url=str(message.guild.icon_url))
-        embed.set_thumbnail(url=message.author.avatar_url)
-        text = None
+    # elif msg_type == "field":
+    #     message.content = string_mention_converter(message.guild, message.content, bold=True)
+    #     embed = Embed(colour=col)
+    #     embed.set_author(name=f"{message.author.name}:", icon_url=message.author.avatar_url)
+    #     embed.add_field(name=f"{message.author.name}:", value=message.content)
+    #     embed.set_footer(text=f"{message.guild.name}", icon_url=str(message.guild.icon_url))
+    #     # embed.set_thumbnail(url=message.author.avatar_url)
+    #     text = None
+    #
+    # elif msg_type == "field_big":
+    #     message.content = string_mention_converter(message.guild, message.content, bold=True)
+    #     embed = Embed(colour=col)
+    #     embed.set_author(name=f"{message.author.name}:")
+    #     embed.add_field(name=f"{message.author.name}:", value=message.content)
+    #     embed.set_footer(text=f"{message.guild.name}", icon_url=str(message.guild.icon_url))
+    #     embed.set_thumbnail(url=message.author.avatar_url)
+    #     text = None
 
     elif msg_type == "code":
+        message.content = string_mention_converter(message.guild, message.content, bold=True)
+        embed = Embed(colour=col, description=message.content)
+        embed.set_author(name=f"{message.author.name}:", icon_url=message.author.avatar_url)
+        embed.set_footer(text=f"{message.guild.name}", icon_url=str(message.guild.icon_url))
+        # embed.set_thumbnail(url=message.author.avatar_url)
+        text = None
+
+    elif msg_type == "code_big":
         message.content = string_mention_converter(message.guild, message.content, bold=True)
         embed = Embed(colour=col, description=message.content)
         embed.set_author(name=f"{message.author.name}:")
         embed.set_footer(text=f"{message.guild.name}", icon_url=str(message.guild.icon_url))
         embed.set_thumbnail(url=message.author.avatar_url)
-        # embed.description(description=message.content)
         text = None
 
     elif msg_type == "custom":
@@ -603,22 +636,33 @@ Returns:
     except Exception as err:
         await ctx.send(str(err))
 
-    message.content = "This is limited to 1000 characters. " + code_text
+    message.content = "This is limited to 2000 characters. " + code_text
     try:
-        text, embed = world_wide_format(ctx.message, "field")
-        await ctx.send("field", embed=embed)
-    except Exception as err:
-        await ctx.send(str(err))
-    try:
-        text, embed = world_wide_format(ctx.message, "field_ft")
-        await ctx.send("field_ft", embed=embed)
+        text, embed = world_wide_format(ctx.message, "normal")
+        await ctx.send("normal", embed=embed)
     except Exception as err:
         await ctx.send(str(err))
 
-    message.content = "This is limited to 2000 characters. " + code_text
+    # message.content = "This is limited to 1000 characters. " + code_text
+    # try:
+    #     text, embed = world_wide_format(ctx.message, "field")
+    #     await ctx.send("field", embed=embed)
+    # except Exception as err:
+    #     await ctx.send(str(err))
+    # try:
+    #     text, embed = world_wide_format(ctx.message, "field_big")
+    #     await ctx.send("field_big", embed=embed)
+    # except Exception as err:
+    #     await ctx.send(str(err))
+
     try:
         text, embed = world_wide_format(ctx.message, "code")
         await ctx.send("code", embed=embed)
+    except Exception as err:
+        await ctx.send(str(err))
+    try:
+        text, embed = world_wide_format(ctx.message, "code_big")
+        await ctx.send("code_big", embed=embed)
     except Exception as err:
         await ctx.send(str(err))
 
@@ -654,7 +698,7 @@ async def on_message(message):
                 f"{message.author}  from chid: {message.channel.id}, {message.guild}\n"
                 f"'{message.content}'")
         servers.remove(message.channel.id)
-        text, embed = world_wide_format(message, msg_type="field")
+        text, embed = world_wide_format(message, msg_type="normal")
         await _announcement(chids=servers, text=text, embed=embed)
         return None
 
@@ -804,7 +848,7 @@ async def purge_all(ctx, amount, *args, **kwargs):
         deleted = await channel.purge(limit=num, check=check_true)
         logger.info(f"Removed {len(deleted)} messages in {ctx.channel}: {ctx.guild}")
 
-        await ctx.send(f"♻️ Removed {len(deleted)} messages", delete_after=5)
+        await ctx.send(f"♻️ Removed {len(deleted)} messages", delete_after=10)
 
 
 @bot.command()
@@ -835,7 +879,7 @@ async def purge_id(ctx, authorid, amount, *args, **kwargs):
         deleted = await channel.purge(limit=num, check=check_true)
         logger.info(f"Removed {len(deleted)} messages in {ctx.channel}: {ctx.guild}")
 
-        await ctx.send(f"♻️ Removed {len(deleted)} messages", delete_after=5)
+        await ctx.send(f"♻️ Removed {len(deleted)} messages", delete_after=10)
 
 
 @bot.command()
@@ -853,7 +897,7 @@ async def purge_bot(ctx, amount, *args, **kwargs):
     if num >= 1:
         deleted = await channel.purge(limit=num, check=is_bot)
         logger.info(f"Removed {len(deleted)} bot messages in {ctx.channel}: {ctx.guild}")
-        await ctx.send(f"♻️ Removed {len(deleted)} bot messages", delete_after=5)
+        await ctx.send(f"♻️ Removed {len(deleted)} bot messages", delete_after=10)
 
 
 @bot.command()
