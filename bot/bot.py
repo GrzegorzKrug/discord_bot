@@ -128,12 +128,24 @@ RUDE = ['Why you bother me {0} ?!', 'Stop it {0}!', 'No, I do not like that {0}.
 GLOBAL_SERVERS = {755063230300160030, 755065402777796663, 755083175491010590}
 
 
-# @bot.command()
-# @my_help.help_decorator("This is test function")
-# async def test(ctx, *args):
-#     member = ctx.author
-#     logger.info(f"{member} has tested {member.guild} ({member.guild.id})")
-#     await ctx.send("test success")
+@bot.command()
+@my_help.help_decorator("This is test function")
+async def test(ctx, *args):
+    user1 = '<@!159985870458322944>'
+    user2 = '<@!159985870458322944>'
+    user3 = '<@!147795752943353856>'
+    role1 = '<@&752559161304154313>'
+    glob1 = '@everyone'
+    glob2 = '@here'
+    long_text = 'Oh hello <@!147795752943353856> and <@!159985870458322944> and <@!753605471650316379>'
+
+    await ctx.send("user1 " + string_mention_converter(ctx.guild, user1))
+    await ctx.send("user2 " + string_mention_converter(ctx.guild, user2))
+    await ctx.send("user3 " + string_mention_converter(ctx.guild, user3))
+    await ctx.send("role1 " + string_mention_converter(ctx.guild, role1))
+    await ctx.send("long: " + string_mention_converter(ctx.guild, long_text))
+    await ctx.send("glob1: " + string_mention_converter(ctx.guild, glob1))
+    await ctx.send("glob2: " + string_mention_converter(ctx.guild, glob2))
 
 
 class RestrictedError(PermissionError):
@@ -182,11 +194,15 @@ def advanced_args(fun):
     """
     logger.warning(f"Advanced args are not supporting non kwargs functions")
 
-    async def f(ctx, *args, **kwargs):
-        good_args = list()
-        user_pattern = re.compile(r"<@[!&]\w+>")
+    async def f(ctx, *args, text=None, **kwargs):
+        if text:
+            logger.error(f"Text is already in advanced args: {text}")
         if not kwargs:
             kwargs = {"force": False, "dry": False, "sudo": False}
+
+        good_args = list()
+        mention_pattern = re.compile(r"<@[!&]\d+>")
+        text_args = []
 
         for arg in args:
             if arg.startswith("-f"):
@@ -211,17 +227,55 @@ def advanced_args(fun):
                     continue
                 if key and val:
                     kwargs.update({key: val})
-            elif user_pattern.match(arg):
-                pass
+            elif mention_pattern.match(arg):
+                name = string_mention_converter(ctx, arg)
+                text_args.append(name)
+
             else:
                 good_args.append(arg)
+                text_args.append(arg)
         good_args = tuple(good_args)
+        text = ' '.join(text_args)
+        kwargs['text'] = text
         output = await fun(ctx, *good_args, **kwargs)
         return output
 
     f.__name__ = fun.__name__
     f.__doc__ = fun.__doc__
     return f
+
+
+def string_mention_converter(guild, text: "input str", bold=True) -> "String":
+    user_pattern = re.compile(r"<@!(\d+)>")
+    role_pattern = re.compile(r"<@&(\d+)>")
+    new_text = text
+
+    new_text = new_text.replace("@everyone", "<everyone>")
+    new_text = new_text.replace("@here", "<here>")
+
+    user_list = user_pattern.findall(text)
+    role_list = role_pattern.findall(text)
+
+    for user in user_list:
+        try:
+            user_name = bot.get_user(int(user)).name
+        except AttributeError:
+            user_name = f"{user}"
+        if bold:
+            new_text = new_text.replace(f"<@!{user}>", f"@**{user_name}**")
+        else:
+            new_text = new_text.replace(f"<@!{user}>", f"@{user_name}")
+
+    for role in role_list:
+        try:
+            roleid = int(role)
+            role_name = guild.get_role(roleid).name
+        except AttributeError as err:
+            logger.error(f"Error in string_mention_converter {err}")
+            role_name = f"{role}"
+        new_text = new_text.replace(f"<@&{role}>", f"@*{role_name}*")
+
+    return new_text
 
 
 def check_sudo_permission(ctx):
@@ -358,6 +412,20 @@ def log_call(fun):
     return decorator
 
 
+@bot.command(aliases=["invite_bot", "invite_me", 'join'])
+@log_call
+@my_help.help_decorator("Command to get bot invitation link", "!invite (here)")
+async def invite(ctx, *args):
+    url_invite = r"https://discord.com/api/oauth2/authorize?client_id=750688123008319628&permissions=470019283&scope=bot"
+    if "here" in args:
+        await ctx.send(f"This is my invitation:\n{url_invite}")
+        await ctx.message.add_reaction("✅")
+    else:
+        await ctx.author.send(f"Here is my invitation link: {url_invite}")
+        await ctx.send(f"✅ Bot invite sent to {ctx.author.mention}.")
+    # await ctx.send(f"Bot invite sent.")
+
+
 def world_wide_format(message, msg_type=None):
     """
     Format message by selection.
@@ -381,7 +449,7 @@ def world_wide_format(message, msg_type=None):
     Returns:
 
     """
-    message.content = message.content.replace("@everyone", "<ev>")
+
     col = Colour.from_rgb(60, 150, 255)
 
     if not msg_type or msg_type not in ['plain', 'tiny', 'compact', 'short', 'field_ft', 'big_short', 'thick', 'field',
@@ -393,23 +461,27 @@ def world_wide_format(message, msg_type=None):
         embed = None
 
     elif msg_type == "tiny":
+        message.content = string_mention_converter(message.guild, message.content, bold=False)
         embed = Embed(colour=col)
         embed.set_footer(text=f"{message.author.name}: {message.content}", icon_url=message.author.avatar_url)
         text = None
 
     elif msg_type == "compact":
+        message.content = string_mention_converter(message.guild, message.content, bold=False)
         embed = Embed(colour=col)
         embed.set_author(name=f"{message.author.name}:")
         embed.set_footer(text=f"{message.content}", icon_url=message.author.avatar_url)
         text = None
 
     elif msg_type == "short":
+        message.content = string_mention_converter(message.guild, message.content, bold=True)
         embed = Embed(title=f"{message.content}", colour=col)
         embed.set_author(name=f"{message.author.name}:")
         embed.set_thumbnail(url=message.author.avatar_url)
         text = None
 
     elif msg_type == "big_short":
+        message.content = string_mention_converter(message.guild, message.content, bold=True)
         embed = Embed(title=message.content, colour=col)
         embed.set_author(name=f"{message.author.name}:")
         embed.set_thumbnail(url=message.author.avatar_url)
@@ -417,6 +489,7 @@ def world_wide_format(message, msg_type=None):
         text = None
 
     elif msg_type == "thick":
+        message.content = string_mention_converter(message.guild, message.content, bold=False)
         embed = Embed(title=f"{message.author.name}:", colour=col)
         embed.set_author(name=f"{message.guild.name}")
         embed.set_footer(text=f"{message.content}")
@@ -424,6 +497,7 @@ def world_wide_format(message, msg_type=None):
         text = None
 
     elif msg_type == "field":
+        message.content = string_mention_converter(message.guild, message.content, bold=True)
         embed = Embed(colour=col)
         embed.add_field(name=f"{message.author.name}:", value=message.content)
         # embed.set_footer(text=f"{message.guild.name}", icon_url=str(message.guild.icon_url))
@@ -431,6 +505,7 @@ def world_wide_format(message, msg_type=None):
         text = None
 
     elif msg_type == "field_ft":
+        message.content = string_mention_converter(message.guild, message.content, bold=True)
         embed = Embed(colour=col)
         embed.add_field(name=f"{message.author.name}:", value=message.content)
         embed.set_footer(text=f"{message.guild.name}", icon_url=str(message.guild.icon_url))
@@ -438,6 +513,7 @@ def world_wide_format(message, msg_type=None):
         text = None
 
     elif msg_type == "code":
+        message.content = string_mention_converter(message.guild, message.content, bold=True)
         embed = Embed(colour=col, description=message.content)
         embed.set_author(name=f"{message.author.name}:")
         embed.set_footer(text=f"{message.guild.name}", icon_url=str(message.guild.icon_url))
@@ -578,7 +654,7 @@ async def on_message(message):
                 f"{message.author}  from chid: {message.channel.id}, {message.guild}\n"
                 f"'{message.content}'")
         servers.remove(message.channel.id)
-        text, embed = world_wide_format(message, msg_type="code")
+        text, embed = world_wide_format(message, msg_type="field")
         await _announcement(chids=servers, text=text, embed=embed)
         return None
 
@@ -941,25 +1017,14 @@ async def _global(ctx, key=None, *args, **kwargs):
 @log_call
 async def eft(ctx, *keyword, dry=False, **kwargs):
     search_url = r'https://escapefromtarkov.gamepedia.com/index.php?search='
+    if len(keyword) < 1:
+        await ctx.send("What? 🤔")
+        return None
     search_phrase = '+'.join(keyword)
-
-    results = requests.get(search_url + search_phrase)
-    print(results.text)
-
-
-@bot.command()
-@log_call
-@advanced_perm_check(is_priv)
-async def private(ctx):
-    """
-    Hello in private channel
-    Args:
-        ctx:
-
-    Returns:
-
-    """
-    await ctx.author.send("hello")
+    url = search_url + search_phrase
+    logger.debug(f"Eft url: {url}")
+    # results = requests.get(url)
+    # print(results.text)
 
 
 @bot.command()
@@ -1376,18 +1441,52 @@ def save_image(image, path):
 
 
 @bot.command()
-@log_call
-async def test_embed(ctx, *args, **kwargs):
+async def embed_table(ctx, *args):
     pic_url = r'https://external-content.duckduckgo.com/iu/?u=http%3A%2F%2Fpixel.nymag.com%2Fimgs%2Fdaily%2Fintelligencer%2F2014%2F12%2F08%2F08-grumpy-cat.o.jpg%2Fa_190x190.w1200.h630.jpg&f=1&nofb=1'
-    description = "This is some big, ass text, for the title, description, " \
-                  + "including information about picture on the right side"
+    description = "Comparison"
 
     author = bot.get_user(147795752943353856)
 
     col = Colour.from_rgb(30, 129, 220)
-    embed = Embed(title='Hello', color=col, description=f"[{description}]({pic_url})", url=pic_url)
+    bullets = {'5.45': {'speed': 10, 'damage': 20}, '7.62': {'speed': 15, 'damage': 40},
+               '9x19': {'speed': 8, 'damage': 15}}
 
-    embed.add_field(name=EMOJIS['1'], value="tex1", inline=True)
+    title = []
+    damage = []
+    speed = []
+    joiner = " | "
+    for caliber, bullet in bullets.items():
+        title.append(f"{caliber:<5}")
+        damage.append(f"{bullet['damage']:<5}")
+        speed.append(f"{bullet['speed']:<5}")
+
+    title = joiner.join(title)
+    damage = joiner.join(damage)
+    speed = joiner.join(speed)
+
+    embed = Embed(title=f"`{title}`", color=col, description=f"[{description}]({pic_url})", url=pic_url)
+    embed.set_author(name="Ammo table")
+
+    embed.add_field(name="Damage", value=f"`{damage}`", inline=False)
+    embed.add_field(name="Speed", value=f"`{speed}`", inline=False)
+    embed.set_thumbnail(url=author.avatar_url)
+
+    embed.set_footer(text='your text', icon_url=pic_url)
+    await ctx.send(embed=embed, content="content")
+
+
+@bot.command()
+async def test_embed(ctx, *args, **kwargs):
+    pic_url = r'https://external-content.duckduckgo.com/iu/?u=http%3A%2F%2Fpixel.nymag.com%2Fimgs%2Fdaily%2Fintelligencer%2F2014%2F12%2F08%2F08-grumpy-cat.o.jpg%2Fa_190x190.w1200.h630.jpg&f=1&nofb=1'
+    description = "This is some big, ass text, for the title, description, " \
+                  + "including **information** about picture on the right side"
+
+    author = bot.get_user(147795752943353856)
+
+    col = Colour.from_rgb(30, 129, 220)
+    embed = Embed(title='He**l**lo', color=col, description=f"[**is this bold?**{description}]({pic_url})", url=pic_url)
+
+    embed.add_field(name="f1", value="**text1**", inline=True)
     embed.add_field(name="f2", value="tex2", inline=True)
     embed.add_field(name="f3", value="tex3", inline=False)
     embed.add_field(name="f3", value="tex3", inline=False)
@@ -1395,9 +1494,8 @@ async def test_embed(ctx, *args, **kwargs):
     embed.add_field(name="f3", value="tex3", inline=False)
     embed.add_field(name="f3", value="tex3", inline=True)
     embed.set_thumbnail(url=author.avatar_url)
-    embed.set_author(name="Youshisu")
-    embed.set_footer(text='your text', icon_url=pic_url)
-    # embed.color = (200, 90, 170)
+    embed.set_author(name="You**sh**isu")
+    embed.set_footer(text='your **text**', icon_url=pic_url)
     await ctx.send(embed=embed, content="content")
 
 
