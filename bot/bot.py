@@ -1,5 +1,6 @@
 import numpy as np
 import traceback
+import datetime
 import requests
 import asyncio
 import logging
@@ -11,22 +12,27 @@ import sys
 import os
 import re
 
-from discord.ext.commands import Bot, CommandError
-# from discord.ext.commands.errors import
-from discord import Activity, Game, Status, Embed, Colour
+from discord.ext.commands import Bot, CommandError, Cog
+from discord import Activity, ActivityType, CustomActivity, Game, Status, Embed, Colour
 
 
-def define_logger(name="Logger", log_level="DEBUG",
+def define_logger(name="logs", log_level="DEBUG", date_in_file=True,
                   combined=True, add_timestamp=True):
     if combined:
-        file_name = "Logs.log"
+        file_name = "all"
     else:
-        file_name = name + ".log"
+        file_name = name
+
+    if date_in_file:
+        dt = datetime.datetime.now().strftime("%Y-%M-%d")
+        file_name = f"{dt}-" + file_name
+    file_name += ".log"
 
     if add_timestamp:
         unique_name = str(random.random())  # Random unique
     else:
         unique_name = name
+
     logger = logging.getLogger(unique_name)
 
     # Switch log level from env variable
@@ -403,7 +409,7 @@ def log_call(fun):
             where = f"#{ctx.channel}, {ctx.guild.name} ({ctx.guild.id})"
         else:
             where = f"{ctx.channel}"
-        logger.info(f"Invo: '{ctx.message.content}', Args:{args}, Kwargs:{kwargs}. {where}")
+        logger.info(f"Invo: '{ctx.message.content}', Args:{args}, Kwargs:{kwargs}. {ctx.message.author}, {where}")
         message = await fun(ctx, *args, **kwargs)
         return message
 
@@ -566,9 +572,14 @@ def world_wide_format(message, msg_type=None):
     return text, embed
 
 
+class CogTest(Cog):
+    async def cog1(self):
+        pass
+
+
 @bot.command()
 @advanced_args
-@my_help.help_decorator("Show global messages examples", "!global_example")
+@my_help.help_decorator("Show global messages examples")
 @log_call
 async def global_examples(ctx, *args, **kwargs):
     """
@@ -716,18 +727,21 @@ async def on_message(message):
 
 @bot.event
 async def on_ready():
-    act = Game(name="!sweeper.", url='Fancy url', type=0)
-    await bot.change_presence(activity=act, status=Status.online)
+    act = Activity(type=ActivityType.watching, name=" if you need !help")
+    await bot.change_presence(status=Status.idle)
     await _announcement([750696820736393261], "✅ Hey, i'm now online.")
+    await bot.change_presence(activity=act, status=Status.online)
     logger.warning(f"On ready announcement is constant")
     logger.debug(f"Going online as {bot.user.name}")
 
-
 @bot.event
 async def close():
-    act = Game(name="Zzzzzzz....", type=2)
-    await bot.change_presence(activity=act, status=Status.offline)
+    act = Activity(name=" to nothing", type=ActivityType.listening)
+    await bot.change_presence(activity=act, status=Status.do_not_disturb)
     await _announcement([750696820736393261], "💤 Sorry, I am going offline.")
+
+    await bot.change_presence(activity=None, status=Status.offline)
+
     logger.warning(f"close announcement is constant")
     logger.debug(f"Going offline")
 
