@@ -298,8 +298,6 @@ def string_mention_converter(guild, text: "input str", bold_name=True) -> "Strin
             logger.error(f"Error in string_mention_converter {err}")
             role_name = f"{role}"
         new_text = new_text.replace(f"<@&{role}>", f"@*{role_name}*")
-    logger.debug(f"input: {text}")
-    logger.debug(f"ouput: {new_text}")
     return new_text
 
 
@@ -478,7 +476,6 @@ def log_call(fun):
 
 @bot.command(aliases=["invite_bot", "invite_me", 'join'])
 @log_call
-@my_help.help_decorator("Command to get bot invitation link", "!invite (priv)")
 async def invite(ctx, *args):
     url_invite = r"https://discord.com/api/oauth2/authorize?client_id=750688123008319628&permissions=470019283&scope=bot"
     embed = Embed(title=f"Invite me!", url=url_invite)
@@ -486,9 +483,21 @@ async def invite(ctx, *args):
     embed.add_field(name="About", value=f"This bot is awesome")
     embed.set_thumbnail(url=bot.user.avatar_url)
 
-    if not "priv" in args:
-        await ctx.send(f"Here is my invitation:", embed=embed)
+    success = 0
+    if ctx.message.mentions:
+        for user in ctx.message.mentions:
+            try:
+                await user.send(f"Here is my invitation:", embed=embed)
+                success += 1
+            except Exception as err:
+                logger.warning(f"Error during invite. To {user}: {err}")
+                pass
         await ctx.message.add_reaction("✅")
+        # await ctx.send(f"Invite sent to {success} users:", embed=embed)
+
+    elif "priv" not in args:
+        await ctx.send(f"Here is my invitation:", embed=embed)
+
     else:
         await ctx.author.send(f"Here is my invitation:", embed=embed)
         await ctx.send(f"✅ Invite sent to {ctx.author.mention}.")
@@ -700,17 +709,9 @@ Returns:
         ```"""
 
     message = ctx.message
-    message.content = "This is limited to 2000 characters. " + just_text
     message.author = bot.get_user(147795752943353856)
 
-    try:
-        await ctx.send("plain")
-        text, embed = world_wide_format(ctx.message, "plain")
-        await ctx.send(text, embed=embed)
-    except Exception as err:
-        await ctx.send(str(err))
-
-    message.content = "This is limited to 2000 characters. " + code_text
+    message.content = "This is limited to 2000 characters. Supports syntax highlights." + code_text
     try:
         await ctx.send("plain")
         text, embed = world_wide_format(ctx.message, "plain")
@@ -737,24 +738,12 @@ Returns:
     except Exception as err:
         await ctx.send(str(err))
 
-    message.content = "This is limited to 2000 characters. " + code_text
+    message.content = "This is limited to 2000 characters. Supports syntax highlights." + code_text
     try:
         text, embed = world_wide_format(ctx.message, "normal")
         await ctx.send("normal", embed=embed)
     except Exception as err:
         await ctx.send(str(err))
-
-    # message.content = "This is limited to 1000 characters. " + code_text
-    # try:
-    #     text, embed = world_wide_format(ctx.message, "field")
-    #     await ctx.send("field", embed=embed)
-    # except Exception as err:
-    #     await ctx.send(str(err))
-    # try:
-    #     text, embed = world_wide_format(ctx.message, "field_big")
-    #     await ctx.send("field_big", embed=embed)
-    # except Exception as err:
-    #     await ctx.send(str(err))
 
     try:
         text, embed = world_wide_format(ctx.message, "code")
