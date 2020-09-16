@@ -13,48 +13,13 @@ import re
 from discord.ext.commands import Bot, CommandError, Cog, command
 from discord import Activity, ActivityType, Status, Embed, Colour
 
-from .decorators import Decorators
+from .decorators import *
 from .permissions import *
 from .loggers import logger
+from .definitions import my_help, bot
 
+from .eft import CogTest
 
-class Help:
-    def __init__(self):
-        self.temp_help_arr = []
-        self.help_dict = {}
-
-    def create_help_dict(self):
-        help_dict = {key: {"simple": simple, "example": example, "full": full_doc}
-                     for command_ob in self.temp_help_arr for key, simple, example, full_doc in command_ob}
-        self.help_dict = help_dict
-        self.temp_help_arr = []
-
-    def help_decorator(self, simple, example=None):
-        _help = []
-
-        def wrapper(function):
-            async def f(*args, **kwargs):
-                value = await function(*args, **kwargs)
-                return value
-
-            if example is None:
-                _example = f"!{function.__name__}"
-            else:
-                _example = example
-            full_doc = function.__doc__
-            _help.append((function.__name__, simple, _example, full_doc))
-            f.__name__ = function.__name__
-            f.__doc__ = function.__doc__
-
-            return f
-
-        self.temp_help_arr.append(_help)
-        return wrapper
-
-
-my_help = Help()
-bot = Bot(command_prefix='!', case_insensitive=True, help_command=None)
-decorators = Decorators(bot)
 EMOJIS = {
         '1': '1️⃣',
         '2': '2️⃣',
@@ -72,7 +37,7 @@ GLOBAL_SERVERS = {755063230300160030, 755065402777796663, 755083175491010590}
 
 
 @bot.command(aliases=["invite_bot", "invite_me", 'join'])
-@decorators.log_call
+@log_call
 async def invite(ctx, *args):
     url_invite = r"https://discord.com/api/oauth2/authorize?client_id=750688123008319628&permissions=470019283&scope=bot"
     embed = Embed(title=f"Invite me!", url=url_invite)
@@ -81,7 +46,7 @@ async def invite(ctx, *args):
     embed.set_thumbnail(url=bot.user.avatar_url)
 
     success = 0
-    if ctx.message.mentions:
+    if ctx.message.mentions or args:
         for user in ctx.message.mentions:
             try:
                 await user.send(f"Here is my invitation:", embed=embed)
@@ -89,8 +54,22 @@ async def invite(ctx, *args):
             except Exception as err:
                 logger.warning(f"Error during invite. To {user}: {err}")
                 pass
+
+        for user_id in args:
+            try:
+                user = bot.get_user(int(user_id))
+                if user:
+                    await user.send(f"Here is my invitation:", embed=embed)
+                    success += 1
+            except ValueError:
+                pass
+
+            except Exception as err:
+                logger.warning(f"Error during invite. To {user_id}: {err}")
+                pass
+
         await ctx.message.add_reaction("✅")
-        # await ctx.send(f"Invite sent to {success} users:", embed=embed)
+        await ctx.send(f"Invite sent to {success} users:", embed=embed)
 
     elif "priv" not in args:
         await ctx.send(f"Here is my invitation:", embed=embed)
@@ -101,7 +80,7 @@ async def invite(ctx, *args):
 
 
 @bot.command(aliases=["bot"])
-@decorators.log_call
+@log_call
 @my_help.help_decorator("General bot information", "!about")
 async def about(ctx, *args):
     url_invite = r"https://discord.com/api/oauth2/authorize?client_id=750688123008319628&permissions=470019283&scope=bot"
@@ -111,6 +90,7 @@ async def about(ctx, *args):
     embed.add_field(name="Customize", value=f"You are free to customise bot", inline=False)
     embed.add_field(name="Global-chat", value=f"Use this bot speak with different servers", inline=False)
     embed.add_field(name="!help", value=f"Get help menu", inline=False)
+    embed.add_field(name="Current s!ervers", value=f"{len(bot.guilds)}", inline=False)
     embed.set_thumbnail(url=bot.user.avatar_url)
 
     await ctx.send(embed=embed)
@@ -151,34 +131,34 @@ def world_wide_format(message, msg_type=None):
         embed = None
 
     elif msg_type == "tiny":
-        message.content = decorators.string_mention_converter(message.guild, message.content, bold_name=False)
+        message.content = string_mention_converter(bot, message.guild, message.content, bold_name=False)
         embed = Embed(colour=col)
         embed.set_footer(text=f"{message.author.name}: {message.content}", icon_url=message.author.avatar_url)
         text = None
 
     elif msg_type == "compact":
-        message.content = decorators.string_mention_converter(message.guild, message.content, bold_name=False)
+        message.content = string_mention_converter(bot, message.guild, message.content, bold_name=False)
         embed = Embed(colour=col)
         embed.set_author(name=f"{message.author.name}:", icon_url=message.author.avatar_url)
         embed.set_footer(text=f"{message.content}")
         text = None
 
     elif msg_type == "normal":
-        message.content = decorators.string_mention_converter(message.guild, message.content, bold_name=False)
+        message.content = string_mention_converter(bot, message.guild, message.content, bold_name=False)
         embed = Embed(colour=col, description=message.content)
         embed.set_author(name=f"{message.author.name}:", icon_url=message.author.avatar_url)
         # embed.set_footer(text=f"{message.content}")
         text = None
 
     elif msg_type == "short":
-        message.content = decorators.string_mention_converter(message.guild, message.content, bold_name=True)
+        message.content = string_mention_converter(bot, message.guild, message.content, bold_name=True)
         embed = Embed(title=f"{message.content}", colour=col)
         embed.set_author(name=f"{message.author.name}:")
         embed.set_thumbnail(url=message.author.avatar_url)
         text = None
 
     elif msg_type == "big_short":
-        message.content = decorators.string_mention_converter(message.guild, message.content, bold_name=True)
+        message.content = string_mention_converter(bot, message.guild, message.content, bold_name=True)
         embed = Embed(title=message.content, colour=col)
         embed.set_author(name=f"{message.author.name}:")
         embed.set_thumbnail(url=message.author.avatar_url)
@@ -186,7 +166,7 @@ def world_wide_format(message, msg_type=None):
         text = None
 
     elif msg_type == "thick":
-        message.content = decorators.string_mention_converter(message.guild, message.content, bold_name=False)
+        message.content = string_mention_converter(bot, message.guild, message.content, bold_name=False)
         embed = Embed(title=f"{message.author.name}:", colour=col)
         embed.set_author(name=f"{message.guild.name}", icon_url=message.guild.icon_url)
         embed.set_footer(text=f"{message.content}")
@@ -195,7 +175,7 @@ def world_wide_format(message, msg_type=None):
 
 
     elif msg_type == "code":
-        message.content = decorators.string_mention_converter(message.guild, message.content, bold_name=True)
+        message.content = string_mention_converter(bot, message.guild, message.content, bold_name=True)
         embed = Embed(colour=col, description=message.content)
         embed.set_author(name=f"{message.author.name}:", icon_url=message.author.avatar_url)
         embed.set_footer(text=f"{message.guild.name}", icon_url=str(message.guild.icon_url))
@@ -203,7 +183,7 @@ def world_wide_format(message, msg_type=None):
         text = None
 
     elif msg_type == "code_big":
-        message.content = decorators.string_mention_converter(message.guild, message.content, bold_name=True)
+        message.content = string_mention_converter(bot, message.guild, message.content, bold_name=True)
         embed = Embed(colour=col, description=message.content)
         embed.set_author(name=f"{message.author.name}:")
         embed.set_footer(text=f"{message.guild.name}", icon_url=str(message.guild.icon_url))
@@ -221,7 +201,7 @@ def world_wide_format(message, msg_type=None):
 
 @bot.command()
 @my_help.help_decorator("Show global messages examples")
-@decorators.log_call
+@log_call
 async def global_examples(ctx, *args, **kwargs):
     """
 Examples used in global chat. Default 'field'
@@ -440,9 +420,9 @@ async def on_member_remove(member):
 
 
 @bot.command()
-@decorators.log_call
+@log_call
 @my_help.help_decorator("You can check how many users is on server")
-@decorators.advanced_perm_check_function(is_not_priv)
+@advanced_perm_check_function(bot, is_not_priv)
 async def status(ctx, *args, **kwargs):
     # member = random.choice(ctx.guild.members)
     color = Colour.from_rgb(10, 180, 50)
@@ -463,8 +443,8 @@ def get_online_count(members):
 
 
 @bot.command(aliases=['purge'])
-@decorators.advanced_perm_check_function(is_server_owner, is_not_priv)
-@decorators.log_call
+@advanced_perm_check_function(bot, is_server_owner, is_not_priv)
+@log_call
 @my_help.help_decorator("Removes X messages", "!purge amount")
 async def purge_all(ctx, amount, *args, **kwargs):
     """
@@ -491,9 +471,9 @@ async def purge_all(ctx, amount, *args, **kwargs):
 
 
 @bot.command()
-@decorators.advanced_perm_check_function(is_server_owner, is_not_priv)
-@decorators.log_call
-@decorators.delete_call
+@advanced_perm_check_function(bot, is_server_owner, is_not_priv)
+@log_call
+@delete_call
 @my_help.help_decorator("Removes user X messages", "!purge_id user_id amount")
 async def purge_id(ctx, authorid, amount, *args, **kwargs):
     """
@@ -522,9 +502,9 @@ async def purge_id(ctx, authorid, amount, *args, **kwargs):
 
 
 @bot.command()
-@decorators.advanced_perm_check_function(is_server_owner, is_not_priv)
-@decorators.log_call
-@decorators.delete_call
+@advanced_perm_check_function(bot, is_server_owner, is_not_priv)
+@log_call
+@delete_call
 @my_help.help_decorator("Removes only bot messages", "!purge_bot amount")
 async def purge_bot(ctx, amount, *args, **kwargs):
     channel = ctx.channel
@@ -540,11 +520,22 @@ async def purge_bot(ctx, amount, *args, **kwargs):
 
 
 @bot.command()
-@decorators.advanced_perm_check_function(is_not_priv)
-@decorators.log_call
+@advanced_perm_check_function(bot, is_not_priv)
+@log_call
 @my_help.help_decorator("Interactive mini game. No borders on sides. Get to end.", "!slipper (height)")
 async def slipper(ctx, dimy=10, dimx=6, *args, **kwargs):
-    """!slipper, mini game"""
+    """
+
+    Args:
+        ctx:
+        dimy:
+        dimx:
+        *args:
+        **kwargs:
+
+    Returns:
+
+    """
     game_controls = ['⬅️', '➡', '⬆️', '⬇️', '🔁']
     translate = {'⬅️': 'left', '➡': 'right', '⬆️': 'up', '⬇️': 'down', '🔁': 'restart'}
     message = await ctx.send("Let's start the game.")
@@ -681,8 +672,8 @@ def board_to_monotext(board, el_size=2, distance_between=0,
 
 
 @bot.command(aliases=['global'])
-@decorators.advanced_perm_check_function(is_server_owner, is_not_priv)
-@decorators.log_call
+@advanced_perm_check_function(bot, is_server_owner, is_not_priv)
+@log_call
 async def _global(ctx, key=None, *args, **kwargs):
     if type(key) is str and key.lower() == "add":
         GLOBAL_SERVERS.add(ctx.channel.id)
@@ -696,8 +687,8 @@ async def _global(ctx, key=None, *args, **kwargs):
 
 
 @bot.command()
-@decorators.advanced_args_function()
-@decorators.log_call
+@advanced_args_function(bot)
+@log_call
 async def eft(ctx, *keyword, dry=False, **kwargs):
     search_url = r'https://escapefromtarkov.gamepedia.com/index.php?search='
     if len(keyword) < 1:
@@ -711,8 +702,8 @@ async def eft(ctx, *keyword, dry=False, **kwargs):
 
 
 @bot.command()
-@decorators.log_call
-@decorators.advanced_perm_check_function(this_is_disabled)
+@advanced_perm_check_function(bot, this_is_disabled)
+@log_call
 async def spam(ctx, num=1, *args, **kwargs):
     num = int(num)
     if num > 100:
@@ -723,7 +714,7 @@ async def spam(ctx, num=1, *args, **kwargs):
 
 
 @bot.command()
-@decorators.delete_call
+@delete_call
 async def react(ctx, *args, **kwargs):
     message = await ctx.channel.send("React here")
     await message.add_reaction("✅")
@@ -746,7 +737,7 @@ async def react(ctx, *args, **kwargs):
 
 
 @bot.command(name="saveme")
-@decorators.log_call
+@log_call
 async def save_avatar(ctx):
     """
     Saves avatar in directory
@@ -764,7 +755,7 @@ async def save_avatar(ctx):
 
 
 @bot.command(aliases=['hi'])
-@decorators.log_call
+@log_call
 async def hello(ctx, *args):
     pool = ["Hello there {0}", "How is it going today {0} ?", "What's up {0}?", "Hey {0}",
             "Hi {0}, do you feel well today?", "Good day {0}"]
@@ -773,8 +764,8 @@ async def hello(ctx, *args):
 
 
 @bot.command(aliases=['h', 'help'])
-@decorators.log_call
-@decorators.advanced_args_function()
+@log_call
+@advanced_args_function(bot)
 async def _help(ctx, cmd_key=None, *args, full=False, **kwargs):
     embed = Embed(colour=Colour.from_rgb(60, 255, 150))
     embed.set_author(name=f"{bot.user.name} help menu")
@@ -806,10 +797,9 @@ async def _help(ctx, cmd_key=None, *args, full=False, **kwargs):
 
 
 @bot.command()
-@decorators.delete_call
-@decorators.advanced_perm_check_function(is_not_priv)
-@decorators.log_call
-@decorators.advanced_perm_check_function(this_is_disabled)
+@delete_call
+@log_call
+@advanced_perm_check_function(bot, is_not_priv, this_is_disabled)
 async def countdown(ctx, num=10, dry=False, force=False, **kwargs):
     try:
         num = int(num)
@@ -834,8 +824,8 @@ async def countdown(ctx, num=10, dry=False, force=False, **kwargs):
 
 
 @bot.command()
-@decorators.delete_call
-@decorators.log_call
+@delete_call
+@log_call
 @my_help.help_decorator("Sweeper game, don't blow it up", "!sweeper (size) (bombs)")
 async def sweeper(ctx, *args):
     """
@@ -900,8 +890,8 @@ async def sweeper(ctx, *args):
 
 
 @bot.command()
-@decorators.log_call
-@decorators.advanced_perm_check_function(this_is_disabled)
+@log_call
+@advanced_perm_check_function(bot, this_is_disabled)
 async def ask(ctx, *args, **kwargs):
     users = []
     text = []
@@ -934,8 +924,8 @@ async def ask(ctx, *args, **kwargs):
 
 
 @bot.command(aliases=['czy', 'is', 'what', 'how'])
-@decorators.advanced_perm_check_function(is_not_priv)
-@decorators.log_call
+@advanced_perm_check_function(bot, is_not_priv)
+@log_call
 @my_help.help_decorator("Poll with maximum 10 answers. Minimum 2 answers, maximum 10. timeout is optional",
                         "!poll question? ans1, ...")
 async def poll(ctx, *args, force=False, dry=False, timeout=120, **kwargs):
@@ -1058,8 +1048,8 @@ async def poll(ctx, *args, force=False, dry=False, timeout=120, **kwargs):
 
 
 @bot.command()
-@decorators.advanced_perm_check_function(is_not_priv)
-@decorators.log_call
+@advanced_perm_check_function(bot, is_not_priv)
+@log_call
 @my_help.help_decorator("Shoot somebody", "!shoot @user num")
 async def shoot(ctx, *args, force=False, dry=False, **kwargs):
     """
@@ -1192,4 +1182,4 @@ async def test_embed(ctx, *args, **kwargs):
 
 os.makedirs("avatars", exist_ok=True)
 my_help.create_help_dict()
-# bot.add_cog(CogTest(bot))
+bot.add_cog(CogTest())
