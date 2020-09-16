@@ -72,7 +72,7 @@ class Decorators:
                 if key and val:
                     kwargs.update({key: val})
             elif mention_pattern.match(arg) or "@everyone" in arg or "@here" in arg:
-                name = Decorators.string_mention_converter(self.bot, ctx.guild, arg, bold_name=bold_name)
+                name = self.string_mention_converter(ctx.guild, arg, bold_name=bold_name)
                 text_args.append(name)
 
             else:
@@ -254,8 +254,6 @@ class Decorators:
 
         Returns:
             message object returned by calling given function with given params
-
-
         """
 
         def function(fun):
