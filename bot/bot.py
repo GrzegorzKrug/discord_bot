@@ -93,7 +93,6 @@ class Help:
 
         def wrapper(function):
             async def f(*args, **kwargs):
-                # f.__help__ = simple
                 value = await function(*args, **kwargs)
                 return value
 
@@ -103,7 +102,6 @@ class Help:
                 _example = example
             full_doc = function.__doc__
             _help.append((function.__name__, simple, _example, full_doc))
-
             f.__name__ = function.__name__
             f.__doc__ = function.__doc__
 
@@ -1667,6 +1665,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     os.makedirs("avatars", exist_ok=True)
+    my_help.create_help_dict()
 
     bot.add_cog(CogTest(bot))
 
