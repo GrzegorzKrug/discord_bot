@@ -240,6 +240,37 @@ def advanced_args_function(bold_name=False):
     return wrapper
 
 
+def advanced_args_method(bold_name=False):
+    """
+    Decorator that translates args to create flags and converts string into kwargs.
+    Args:
+        fun:
+
+    Returns:
+        message object returned by calling given function with given params
+    """
+
+    def wrapper(fun):
+        logger.warning(f"Advanced args are not supporting non kwargs functions")
+        if "." not in fun.__qualname__:
+            raise TypeError("This decorator is for methods")
+
+        async def f(cls, ctx, *args, text=None, **kwargs):
+            if text:
+                logger.error(f"Text is already in advanced args: {text}")
+
+            good_args, kwargs = _get_advanced_args(ctx, *args, bold_name=bold_name, **kwargs)
+
+            output = await fun(cls, ctx, *good_args, **kwargs)
+            return output
+
+        f.__name__ = fun.__name__
+        f.__doc__ = fun.__doc__
+        return f
+
+    return wrapper
+
+
 def string_mention_converter(guild, text: "input str", bold_name=True) -> "String":
     user_pattern = re.compile(r"<@!(\d+)>")
     role_pattern = re.compile(r"<@&(\d+)>")
@@ -284,6 +315,16 @@ def check_force_permission(ctx):
     return False
 
 
+def _check_advanced_perm(ctx, *args, checking_funcs=None, sudo=False, force=False, **kwargs):
+    if sudo and check_sudo_permission(ctx) or all(chk_f(ctx, *args, **kwargs) for chk_f in checking_funcs):
+        if force:
+            force = check_force_permission(ctx)
+
+        return True, force
+    else:
+        raise CommandError("No permission")
+
+
 def advanced_perm_check_function(*checking_funcs, bold_name=False):
     """
     Check channels and permissions, use -s -sudo or -a -admin to run it.
@@ -296,12 +337,12 @@ def advanced_perm_check_function(*checking_funcs, bold_name=False):
 
     def decorator(fun):
         @advanced_args_function(bold_name)
-        async def f(ctx, *args, sudo=False, force=False, **kwargs):
-            if sudo and check_sudo_permission(ctx) or all(chk_f(ctx, *args, **kwargs) for chk_f in checking_funcs):
-                if force:
-                    force = check_force_permission(ctx)
-
-                output = await fun(ctx, *args, force=force, **kwargs)
+        async def f(*args, sudo=False, force=False, **kwargs):
+            valid, force = _check_advanced_perm(*args,
+                                                sudo=sudo, force=force, **kwargs,
+                                                checking_funcs=[*checking_funcs])
+            if valid:
+                output = await fun(*args, force=force, **kwargs)
                 return output
             else:
                 raise CommandError("No permission")
@@ -313,33 +354,33 @@ def advanced_perm_check_function(*checking_funcs, bold_name=False):
     return decorator
 
 
-# def advanced_perm_check_method(*checking_funs):
-#     """
-#     Check channels and permissions, use -s -sudo or -a -admin to run it.
-#     Args:
-#         *checking_funs:
-#
-#     Returns:
-#         message object returned by calling given function with given params
-#     """
-#
-#     def decorator(meth):
-#         @advanced_args
-#         async def f(self, ctx, *args, sudo=False, force=False, **kwargs):
-#             if sudo and check_sudo_permission(ctx) or all(chk_f(ctx, *args, **kwargs) for chk_f in checking_funs):
-#                 if force:
-#                     force = check_force_permission(ctx)
-#
-#                 output = await meth(self, ctx, *args, force=force, **kwargs)
-#                 return output
-#             else:
-#                 raise CommandError("No permission")
-#
-#         f.__name__ = meth.__name__
-#         f.__doc__ = meth.__doc__
-#         return f
-#
-#     return decorator
+def advanced_perm_check_method(*checking_funcs, bold_name=False):
+    """
+    Check channels and permissions, use -s -sudo or -a -admin to run it.
+    Args:
+        *checking_funcs:
+        bold_name: if output text should use bold font
+    Returns:
+        message object returned by calling given function with given params
+    """
+
+    def decorator(fun):
+        @advanced_args_method(bold_name)
+        async def f(cls, *args, sudo=False, force=False, **kwargs):
+            valid, force = _check_advanced_perm(*args,
+                                                sudo=sudo, force=force, **kwargs,
+                                                checking_funcs=[*checking_funcs])
+            if valid:
+                output = await fun(cls, *args, force=force, **kwargs)
+                return output
+            else:
+                raise CommandError("No permission")
+
+        f.__name__ = fun.__name__
+        f.__doc__ = fun.__doc__
+        return f
+
+    return decorator
 
 
 def delete_call(fun):
@@ -592,24 +633,37 @@ def world_wide_format(message, msg_type=None):
 
 
 class CogTest(Cog):
-    # def __init__(self, bot):
-    #     self.bot = bot
-    #     self._last_member = None
+    def __init__(self, bot):
+        self.bot = bot
+        # self._last_member = None
 
     @command()
-    async def cog1(self, ctx):
+    async def cog0(self, ctx):
+        print("Cog0")
+        pass
+
+    @command()
+    @advanced_perm_check_method()
+    async def cog1(self, ctx, *args, **kwargs):
         print("Cog1")
         pass
 
     @command()
-    async def cog2(self, ctx):
+    @advanced_perm_check_function()
+    async def cog2(self, ctx, *args, **kwargs):
         print("Cog2")
         pass
 
     @command()
-    @advanced_perm_check_function(is_priv)
-    async def cog3(self, ctx):
+    @advanced_args_method()
+    async def cog3(self, ctx, *args, **kwargs):
         print("Cog3")
+        pass
+
+    @command()
+    @advanced_args_function()
+    async def cog4(self, ctx, *args, **kwargs):
+        print("Cog4")
         pass
 
 
@@ -727,30 +781,6 @@ Returns:
         await ctx.send("big_short", embed=embed)
     except Exception as err:
         await ctx.send(str(err))
-
-
-@bot.command()
-@advanced_perm_check_function()
-async def test1(ctx, *args, **kwargs):
-    await ctx.send(f"{args}, {kwargs}")
-
-
-@bot.command()
-@advanced_perm_check_function(bold_name=True)
-async def test2(ctx, *args, **kwargs):
-    await ctx.send(f"{args}, {kwargs}")
-
-
-@bot.command()
-@advanced_args_function()
-async def test3(ctx, *args, **kwargs):
-    await ctx.send(f"{args}, {kwargs}")
-
-
-@bot.command()
-@advanced_args_function(bold_name=True)
-async def test4(ctx, *args, **kwargs):
-    await ctx.send(f"{args}, {kwargs}")
 
 
 @bot.event
@@ -1638,7 +1668,7 @@ if __name__ == "__main__":
 
     os.makedirs("avatars", exist_ok=True)
 
-    bot.add_cog(CogTest())
+    bot.add_cog(CogTest(bot))
 
     bot.run(token)
     # asyncio.run(custom_run(token))
