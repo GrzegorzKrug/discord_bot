@@ -1,9 +1,7 @@
 import numpy as np
 import traceback
-import datetime
 import requests
 import asyncio
-import logging
 import random
 import scipy
 import time
@@ -13,68 +11,11 @@ import os
 import re
 
 from discord.ext.commands import Bot, CommandError, Cog, command
-from discord import Activity, ActivityType, CustomActivity, Game, Status, Embed, Colour
+from discord import Activity, ActivityType, Status, Embed, Colour
 
-
-def define_logger(name="logs", log_level="DEBUG", date_in_file=True,
-                  combined=True, add_timestamp=True):
-    if combined:
-        file_name = "all"
-    else:
-        file_name = name
-
-    if date_in_file:
-        dt = datetime.datetime.now().strftime("%Y-%M-%d")
-        file_name = f"{dt}-" + file_name
-    file_name += ".log"
-
-    if add_timestamp:
-        unique_name = str(random.random())  # Random unique
-    else:
-        unique_name = name
-
-    logger = logging.getLogger(unique_name)
-
-    # Switch log level from env variable
-    if log_level == "DEBUG":
-        logger.setLevel(logging.DEBUG)
-    elif log_level == "INFO":
-        logger.setLevel(logging.INFO)
-    elif log_level == "WARNING":
-        logger.setLevel(logging.WARNING)
-    elif log_level == "ERROR":
-        logger.setLevel(logging.ERROR)
-    elif log_level == "CRITICAL":
-        logger.setLevel(logging.CRITICAL)
-    else:
-        logger.setLevel(logging.WARNING)
-
-    # Log Handlers: Console and file
-    try:
-        fh = logging.FileHandler(os.path.join(r'/logs', file_name),
-                                 mode='a')
-    except FileNotFoundError:
-        os.makedirs(r'logs', exist_ok=True)
-        fh = logging.FileHandler(os.path.join(r'logs', file_name),
-                                 mode='a')
-
-    ch = logging.StreamHandler()
-
-    # LEVEL
-    fh.setLevel("INFO")
-
-    # Log Formatting
-    formatter = logging.Formatter(
-            f'%(asctime)s -{name}- %(levelname)s - %(message)s')
-    fh.setFormatter(formatter)
-    ch.setFormatter(formatter)
-
-    # Add handlers to logger
-    logger.addHandler(fh)
-    logger.addHandler(ch)
-    logger.propagate = False  # this prevents other loggers I thinks from logging
-
-    return logger
+from .decorators import Decorators
+from .permissions import *
+from .loggers import logger
 
 
 class Help:
@@ -112,10 +53,8 @@ class Help:
 
 
 my_help = Help()
-
-logger = define_logger("Bot")
-
 bot = Bot(command_prefix='!', case_insensitive=True, help_command=None)
+decorators = Decorators(bot)
 EMOJIS = {
         '1': '1️⃣',
         '2': '2️⃣',
@@ -132,350 +71,8 @@ RUDE = ['Why you bother me {0} ?!', 'Stop it {0}!', 'No, I do not like that {0}.
 GLOBAL_SERVERS = {755063230300160030, 755065402777796663, 755083175491010590}
 
 
-class RestrictedError(PermissionError):
-    pass
-
-
-def is_not_priv(ctx, *args, **kwargs):
-    if ctx.guild:
-        return True
-    else:
-        raise RestrictedError("This command is restricted to server channels.")
-
-
-def is_priv(ctx, *args, **kwargs):
-    if ctx.guild:
-        raise RestrictedError("This command is restricted to private channels.")
-    else:
-        return True
-
-
-def is_server_owner(ctx, *args, **kwargs):
-    if not ctx.guild:
-        raise RestrictedError("This command is restricted to server.")
-
-    elif not ctx.guild.owner.id == ctx.author.id:
-        raise RestrictedError("This command is restricted to server owner.")
-    else:
-        return True
-
-
-def this_is_disabled(*args, **kwargs):
-    raise RestrictedError("Command is disabled.")
-
-
-def _get_advanced_args(ctx, *args, bold_name=False, **kwargs):
-    if not kwargs:
-        kwargs = {"force": False, "dry": False, "sudo": False}
-
-    good_args = list()
-    mention_pattern = re.compile(r"<@[!&]\d+>")
-    text_args = []
-
-    for arg in args:
-        if arg.startswith("-f"):
-            "force, enforce parameters"
-            kwargs['force'] = True
-        elif arg.startswith("-d"):
-            "dry run"
-            kwargs['dry'] = True
-        elif arg.startswith("-s") or arg.startswith("-a"):
-            "sudo or admin"
-            kwargs['sudo'] = True
-        elif arg.startswith("-"):
-            try:
-                _ = float(arg)
-                good_args.append(arg)
-            except ValueError:
-                "drop unknown parameters"
-                logger.warning(f"unknown argument: {arg}")
-        elif "=" in arg:
-            key, val = arg.split("=")
-            if key == "force" or key == "dry":
-                continue
-            if key and val:
-                kwargs.update({key: val})
-        elif mention_pattern.match(arg) or "@everyone" in arg or "@here" in arg:
-            name = string_mention_converter(ctx.guild, arg, bold_name=bold_name)
-            text_args.append(name)
-
-        else:
-            good_args.append(arg)
-            text_args.append(arg)
-    good_args = tuple(good_args)
-    text = ' '.join(text_args)
-    kwargs['text'] = text
-
-    return good_args, kwargs
-
-
-def advanced_args_function(bold_name=False):
-    """
-    Decorator that translates args to create flags and converts string into kwargs.
-    Args:
-        fun:
-
-    Returns:
-        message object returned by calling given function with given params
-    """
-
-    def wrapper(fun):
-        logger.warning(f"Advanced args are not supporting non kwargs functions")
-
-        async def f(ctx, *args, text=None, **kwargs):
-            if text:
-                logger.error(f"Text is already in advanced args: {text}")
-
-            good_args, kwargs = _get_advanced_args(ctx, *args, bold_name=bold_name, **kwargs)
-
-            output = await fun(ctx, *good_args, **kwargs)
-            return output
-
-        f.__name__ = fun.__name__
-        f.__doc__ = fun.__doc__
-        return f
-
-    return wrapper
-
-
-def advanced_args_method(bold_name=False):
-    """
-    Decorator that translates args to create flags and converts string into kwargs.
-    Args:
-        fun:
-
-    Returns:
-        message object returned by calling given function with given params
-    """
-
-    def wrapper(fun):
-        logger.warning(f"Advanced args are not supporting non kwargs functions")
-        if "." not in fun.__qualname__:
-            raise TypeError("This decorator is for methods")
-
-        async def f(cls, ctx, *args, text=None, **kwargs):
-            if text:
-                logger.error(f"Text is already in advanced args: {text}")
-
-            good_args, kwargs = _get_advanced_args(ctx, *args, bold_name=bold_name, **kwargs)
-
-            output = await fun(cls, ctx, *good_args, **kwargs)
-            return output
-
-        f.__name__ = fun.__name__
-        f.__doc__ = fun.__doc__
-        return f
-
-    return wrapper
-
-
-def string_mention_converter(guild, text: "input str", bold_name=True) -> "String":
-    user_pattern = re.compile(r"<@!(\d+)>")
-    role_pattern = re.compile(r"<@&(\d+)>")
-    new_text = text
-
-    new_text = new_text.replace("@everyone", "<everyone>")
-    new_text = new_text.replace("@here", "<here>")
-
-    user_list = user_pattern.findall(text)
-    role_list = role_pattern.findall(text)
-
-    for user in user_list:
-        try:
-            user_name = bot.get_user(int(user)).name
-        except AttributeError:
-            user_name = f"{user}"
-        if bold_name:
-            new_text = new_text.replace(f"<@!{user}>", f"@**{user_name}**")
-        else:
-            new_text = new_text.replace(f"<@!{user}>", f"@{user_name}")
-
-    for role in role_list:
-        try:
-            roleid = int(role)
-            role_name = guild.get_role(roleid).name
-        except AttributeError as err:
-            logger.error(f"Error in string_mention_converter {err}")
-            role_name = f"{role}"
-        new_text = new_text.replace(f"<@&{role}>", f"@*{role_name}*")
-    return new_text
-
-
-def check_sudo_permission(ctx):
-    logger.critical(f"NotImplemented, sudo is not checking permission yet")
-    return False
-
-
-def check_force_permission(ctx):
-    logger.critical(f"NotImplemented, force is not checking permission yet")
-    return False
-
-
-def _check_advanced_perm(ctx, *args, checking_funcs=None, sudo=False, force=False, **kwargs):
-    if sudo and check_sudo_permission(ctx) or all(chk_f(ctx, *args, **kwargs) for chk_f in checking_funcs):
-        if force:
-            force = check_force_permission(ctx)
-
-        return True, force
-    else:
-        raise CommandError("No permission")
-
-
-def advanced_perm_check_function(*checking_funcs, bold_name=False):
-    """
-    Check channels and permissions, use -s -sudo or -a -admin to run it.
-    Args:
-        *checking_funcs:
-        bold_name: if output text should use bold font
-    Returns:
-        message object returned by calling given function with given params
-    """
-
-    def decorator(fun):
-        @advanced_args_function(bold_name)
-        async def f(*args, sudo=False, force=False, **kwargs):
-            valid, force = _check_advanced_perm(*args,
-                                                sudo=sudo, force=force, **kwargs,
-                                                checking_funcs=[*checking_funcs])
-            if valid:
-                output = await fun(*args, force=force, **kwargs)
-                return output
-            else:
-                raise CommandError("No permission")
-
-        f.__name__ = fun.__name__
-        f.__doc__ = fun.__doc__
-        return f
-
-    return decorator
-
-
-def advanced_perm_check_method(*checking_funcs, bold_name=False):
-    """
-    Check channels and permissions, use -s -sudo or -a -admin to run it.
-    Args:
-        *checking_funcs:
-        bold_name: if output text should use bold font
-    Returns:
-        message object returned by calling given function with given params
-    """
-
-    def decorator(fun):
-        @advanced_args_method(bold_name)
-        async def f(cls, *args, sudo=False, force=False, **kwargs):
-            valid, force = _check_advanced_perm(*args,
-                                                sudo=sudo, force=force, **kwargs,
-                                                checking_funcs=[*checking_funcs])
-            if valid:
-                output = await fun(cls, *args, force=force, **kwargs)
-                return output
-            else:
-                raise CommandError("No permission")
-
-        f.__name__ = fun.__name__
-        f.__doc__ = fun.__doc__
-        return f
-
-    return decorator
-
-
-def delete_call(fun):
-    """
-    Decorator that removes message which triggered command.
-    Args:
-        fun:
-
-    Returns:
-        message object returned by calling given function with given params
-    """
-
-    async def decorator(ctx, *args, **kwargs):
-        result = await fun(ctx, *args, **kwargs)
-
-        try:
-            await ctx.message.delete()
-        except Exception as pe:
-            logger.warning(f"Can not delete call: {pe}")
-
-        return result
-
-    decorator.__name__ = fun.__name__
-    decorator.__doc__ = fun.__doc__
-    return decorator
-
-
-def trash_after(timeout=600):
-    """
-    Decorator, that remove message after given time.
-    Decorated function must return message!
-    Args:
-        timeout: Integer, default 600
-
-    Returns:
-        message object returned by calling given function with given params
-
-
-    """
-
-    def function(fun):
-        async def decorator(ctx, *args, **kwargs):
-
-            message = await fun(ctx, *args, **kwargs)
-
-            await message.add_reaction("❎")
-            await asyncio.sleep(0.1)
-
-            def check_reaction(reaction, user):
-                return user == ctx.message.author \
-                       and str(reaction.emoji) == '❎' \
-                       and reaction.message.id == message.id
-
-            try:
-                if timeout < 1:
-                    tm = 30
-                else:
-                    tm = timeout
-                reaction, user = await bot.wait_for('reaction_add',
-                                                    check=check_reaction,
-                                                    timeout=tm)
-            except asyncio.TimeoutError:
-                pass
-
-            await message.delete()
-
-        decorator.__name__ = fun.__name__
-        decorator.__doc__ = fun.__doc__
-        return decorator
-
-    return function
-
-
-def log_call(fun):
-    """
-    Decorator, logs function.
-    Args:
-        timeout: Integer, default 600
-
-    Returns:
-        message object returned by calling given function with given params
-    """
-
-    async def decorator(ctx, *args, **kwargs):
-        if ctx.guild:
-            where = f"#{ctx.channel}, {ctx.guild.name} ({ctx.guild.id})"
-        else:
-            where = f"{ctx.channel}"
-        logger.info(f"Invo: '{ctx.message.content}', Args:{args}, Kwargs:{kwargs}. {ctx.message.author}, {where}")
-        message = await fun(ctx, *args, **kwargs)
-        return message
-
-    decorator.__name__ = fun.__name__
-    decorator.__doc__ = fun.__doc__
-    return decorator
-
-
 @bot.command(aliases=["invite_bot", "invite_me", 'join'])
-@log_call
+@decorators.log_call
 async def invite(ctx, *args):
     url_invite = r"https://discord.com/api/oauth2/authorize?client_id=750688123008319628&permissions=470019283&scope=bot"
     embed = Embed(title=f"Invite me!", url=url_invite)
@@ -504,8 +101,8 @@ async def invite(ctx, *args):
 
 
 @bot.command(aliases=["bot"])
-@log_call
-@my_help.help_decorator("about bot", "!invite (here)")
+@decorators.log_call
+@my_help.help_decorator("General bot information", "!about")
 async def about(ctx, *args):
     url_invite = r"https://discord.com/api/oauth2/authorize?client_id=750688123008319628&permissions=470019283&scope=bot"
     embed = Embed(title=f"Invite me!", url=url_invite)
@@ -554,34 +151,34 @@ def world_wide_format(message, msg_type=None):
         embed = None
 
     elif msg_type == "tiny":
-        message.content = string_mention_converter(message.guild, message.content, bold_name=False)
+        message.content = decorators.string_mention_converter(message.guild, message.content, bold_name=False)
         embed = Embed(colour=col)
         embed.set_footer(text=f"{message.author.name}: {message.content}", icon_url=message.author.avatar_url)
         text = None
 
     elif msg_type == "compact":
-        message.content = string_mention_converter(message.guild, message.content, bold_name=False)
+        message.content = decorators.string_mention_converter(message.guild, message.content, bold_name=False)
         embed = Embed(colour=col)
         embed.set_author(name=f"{message.author.name}:", icon_url=message.author.avatar_url)
         embed.set_footer(text=f"{message.content}")
         text = None
 
     elif msg_type == "normal":
-        message.content = string_mention_converter(message.guild, message.content, bold_name=False)
+        message.content = decorators.string_mention_converter(message.guild, message.content, bold_name=False)
         embed = Embed(colour=col, description=message.content)
         embed.set_author(name=f"{message.author.name}:", icon_url=message.author.avatar_url)
         # embed.set_footer(text=f"{message.content}")
         text = None
 
     elif msg_type == "short":
-        message.content = string_mention_converter(message.guild, message.content, bold_name=True)
+        message.content = decorators.string_mention_converter(message.guild, message.content, bold_name=True)
         embed = Embed(title=f"{message.content}", colour=col)
         embed.set_author(name=f"{message.author.name}:")
         embed.set_thumbnail(url=message.author.avatar_url)
         text = None
 
     elif msg_type == "big_short":
-        message.content = string_mention_converter(message.guild, message.content, bold_name=True)
+        message.content = decorators.string_mention_converter(message.guild, message.content, bold_name=True)
         embed = Embed(title=message.content, colour=col)
         embed.set_author(name=f"{message.author.name}:")
         embed.set_thumbnail(url=message.author.avatar_url)
@@ -589,33 +186,16 @@ def world_wide_format(message, msg_type=None):
         text = None
 
     elif msg_type == "thick":
-        message.content = string_mention_converter(message.guild, message.content, bold_name=False)
+        message.content = decorators.string_mention_converter(message.guild, message.content, bold_name=False)
         embed = Embed(title=f"{message.author.name}:", colour=col)
         embed.set_author(name=f"{message.guild.name}", icon_url=message.guild.icon_url)
         embed.set_footer(text=f"{message.content}")
         embed.set_thumbnail(url=message.author.avatar_url)
         text = None
 
-    # elif msg_type == "field":
-    #     message.content = string_mention_converter(message.guild, message.content, bold=True)
-    #     embed = Embed(colour=col)
-    #     embed.set_author(name=f"{message.author.name}:", icon_url=message.author.avatar_url)
-    #     embed.add_field(name=f"{message.author.name}:", value=message.content)
-    #     embed.set_footer(text=f"{message.guild.name}", icon_url=str(message.guild.icon_url))
-    #     # embed.set_thumbnail(url=message.author.avatar_url)
-    #     text = None
-    #
-    # elif msg_type == "field_big":
-    #     message.content = string_mention_converter(message.guild, message.content, bold=True)
-    #     embed = Embed(colour=col)
-    #     embed.set_author(name=f"{message.author.name}:")
-    #     embed.add_field(name=f"{message.author.name}:", value=message.content)
-    #     embed.set_footer(text=f"{message.guild.name}", icon_url=str(message.guild.icon_url))
-    #     embed.set_thumbnail(url=message.author.avatar_url)
-    #     text = None
 
     elif msg_type == "code":
-        message.content = string_mention_converter(message.guild, message.content, bold_name=True)
+        message.content = decorators.string_mention_converter(message.guild, message.content, bold_name=True)
         embed = Embed(colour=col, description=message.content)
         embed.set_author(name=f"{message.author.name}:", icon_url=message.author.avatar_url)
         embed.set_footer(text=f"{message.guild.name}", icon_url=str(message.guild.icon_url))
@@ -623,7 +203,7 @@ def world_wide_format(message, msg_type=None):
         text = None
 
     elif msg_type == "code_big":
-        message.content = string_mention_converter(message.guild, message.content, bold_name=True)
+        message.content = decorators.string_mention_converter(message.guild, message.content, bold_name=True)
         embed = Embed(colour=col, description=message.content)
         embed.set_author(name=f"{message.author.name}:")
         embed.set_footer(text=f"{message.guild.name}", icon_url=str(message.guild.icon_url))
@@ -639,44 +219,9 @@ def world_wide_format(message, msg_type=None):
     return text, embed
 
 
-class CogTest(Cog):
-    def __init__(self, bot):
-        self.bot = bot
-        # self._last_member = None
-
-    @command()
-    async def cog0(self, ctx):
-        print("Cog0")
-        pass
-
-    @command()
-    @advanced_perm_check_method()
-    async def cog1(self, ctx, *args, **kwargs):
-        print("Cog1")
-        pass
-
-    @command()
-    @advanced_perm_check_function()
-    async def cog2(self, ctx, *args, **kwargs):
-        print("Cog2")
-        pass
-
-    @command()
-    @advanced_args_method()
-    async def cog3(self, ctx, *args, **kwargs):
-        print("Cog3")
-        pass
-
-    @command()
-    @advanced_args_function()
-    async def cog4(self, ctx, *args, **kwargs):
-        print("Cog4")
-        pass
-
-
 @bot.command()
 @my_help.help_decorator("Show global messages examples")
-@log_call
+@decorators.log_call
 async def global_examples(ctx, *args, **kwargs):
     """
 Examples used in global chat. Default 'field'
@@ -895,9 +440,9 @@ async def on_member_remove(member):
 
 
 @bot.command()
-@log_call
+@decorators.log_call
 @my_help.help_decorator("You can check how many users is on server")
-@advanced_perm_check_function(is_not_priv)
+@decorators.advanced_perm_check_function(is_not_priv)
 async def status(ctx, *args, **kwargs):
     # member = random.choice(ctx.guild.members)
     color = Colour.from_rgb(10, 180, 50)
@@ -918,8 +463,8 @@ def get_online_count(members):
 
 
 @bot.command(aliases=['purge'])
-@advanced_perm_check_function(is_server_owner, is_not_priv)
-@log_call
+@decorators.advanced_perm_check_function(is_server_owner, is_not_priv)
+@decorators.log_call
 @my_help.help_decorator("Removes X messages", "!purge amount")
 async def purge_all(ctx, amount, *args, **kwargs):
     """
@@ -946,9 +491,9 @@ async def purge_all(ctx, amount, *args, **kwargs):
 
 
 @bot.command()
-@advanced_perm_check_function(is_server_owner, is_not_priv)
-@log_call
-@delete_call
+@decorators.advanced_perm_check_function(is_server_owner, is_not_priv)
+@decorators.log_call
+@decorators.delete_call
 @my_help.help_decorator("Removes user X messages", "!purge_id user_id amount")
 async def purge_id(ctx, authorid, amount, *args, **kwargs):
     """
@@ -977,9 +522,9 @@ async def purge_id(ctx, authorid, amount, *args, **kwargs):
 
 
 @bot.command()
-@advanced_perm_check_function(is_server_owner, is_not_priv)
-@log_call
-@delete_call
+@decorators.advanced_perm_check_function(is_server_owner, is_not_priv)
+@decorators.log_call
+@decorators.delete_call
 @my_help.help_decorator("Removes only bot messages", "!purge_bot amount")
 async def purge_bot(ctx, amount, *args, **kwargs):
     channel = ctx.channel
@@ -995,8 +540,8 @@ async def purge_bot(ctx, amount, *args, **kwargs):
 
 
 @bot.command()
-@advanced_perm_check_function(is_not_priv)
-@log_call
+@decorators.advanced_perm_check_function(is_not_priv)
+@decorators.log_call
 @my_help.help_decorator("Interactive mini game. No borders on sides. Get to end.", "!slipper (height)")
 async def slipper(ctx, dimy=10, dimx=6, *args, **kwargs):
     """!slipper, mini game"""
@@ -1136,8 +681,8 @@ def board_to_monotext(board, el_size=2, distance_between=0,
 
 
 @bot.command(aliases=['global'])
-@advanced_perm_check_function(is_server_owner, is_not_priv)
-@log_call
+@decorators.advanced_perm_check_function(is_server_owner, is_not_priv)
+@decorators.log_call
 async def _global(ctx, key=None, *args, **kwargs):
     if type(key) is str and key.lower() == "add":
         GLOBAL_SERVERS.add(ctx.channel.id)
@@ -1151,8 +696,8 @@ async def _global(ctx, key=None, *args, **kwargs):
 
 
 @bot.command()
-@advanced_args_function()
-@log_call
+@decorators.advanced_args_function()
+@decorators.log_call
 async def eft(ctx, *keyword, dry=False, **kwargs):
     search_url = r'https://escapefromtarkov.gamepedia.com/index.php?search='
     if len(keyword) < 1:
@@ -1166,8 +711,8 @@ async def eft(ctx, *keyword, dry=False, **kwargs):
 
 
 @bot.command()
-@log_call
-@advanced_perm_check_function(this_is_disabled)
+@decorators.log_call
+@decorators.advanced_perm_check_function(this_is_disabled)
 async def spam(ctx, num=1, *args, **kwargs):
     num = int(num)
     if num > 100:
@@ -1178,7 +723,7 @@ async def spam(ctx, num=1, *args, **kwargs):
 
 
 @bot.command()
-@delete_call
+@decorators.delete_call
 async def react(ctx, *args, **kwargs):
     message = await ctx.channel.send("React here")
     await message.add_reaction("✅")
@@ -1201,7 +746,7 @@ async def react(ctx, *args, **kwargs):
 
 
 @bot.command(name="saveme")
-@log_call
+@decorators.log_call
 async def save_avatar(ctx):
     """
     Saves avatar in directory
@@ -1219,7 +764,7 @@ async def save_avatar(ctx):
 
 
 @bot.command(aliases=['hi'])
-@log_call
+@decorators.log_call
 async def hello(ctx, *args):
     pool = ["Hello there {0}", "How is it going today {0} ?", "What's up {0}?", "Hey {0}",
             "Hi {0}, do you feel well today?", "Good day {0}"]
@@ -1228,8 +773,8 @@ async def hello(ctx, *args):
 
 
 @bot.command(aliases=['h', 'help'])
-@log_call
-@advanced_args_function()
+@decorators.log_call
+@decorators.advanced_args_function()
 async def _help(ctx, cmd_key=None, *args, full=False, **kwargs):
     embed = Embed(colour=Colour.from_rgb(60, 255, 150))
     embed.set_author(name=f"{bot.user.name} help menu")
@@ -1261,10 +806,10 @@ async def _help(ctx, cmd_key=None, *args, full=False, **kwargs):
 
 
 @bot.command()
-@delete_call
-@advanced_perm_check_function(is_not_priv)
-@log_call
-@advanced_perm_check_function(this_is_disabled)
+@decorators.delete_call
+@decorators.advanced_perm_check_function(is_not_priv)
+@decorators.log_call
+@decorators.advanced_perm_check_function(this_is_disabled)
 async def countdown(ctx, num=10, dry=False, force=False, **kwargs):
     try:
         num = int(num)
@@ -1289,8 +834,8 @@ async def countdown(ctx, num=10, dry=False, force=False, **kwargs):
 
 
 @bot.command()
-@delete_call
-@log_call
+@decorators.delete_call
+@decorators.log_call
 @my_help.help_decorator("Sweeper game, don't blow it up", "!sweeper (size) (bombs)")
 async def sweeper(ctx, *args):
     """
@@ -1355,8 +900,8 @@ async def sweeper(ctx, *args):
 
 
 @bot.command()
-@log_call
-@advanced_perm_check_function(this_is_disabled)
+@decorators.log_call
+@decorators.advanced_perm_check_function(this_is_disabled)
 async def ask(ctx, *args, **kwargs):
     users = []
     text = []
@@ -1389,8 +934,8 @@ async def ask(ctx, *args, **kwargs):
 
 
 @bot.command(aliases=['czy', 'is', 'what', 'how'])
-@advanced_perm_check_function(is_not_priv)
-@log_call
+@decorators.advanced_perm_check_function(is_not_priv)
+@decorators.log_call
 @my_help.help_decorator("Poll with maximum 10 answers. Minimum 2 answers, maximum 10. timeout is optional",
                         "!poll question? ans1, ...")
 async def poll(ctx, *args, force=False, dry=False, timeout=120, **kwargs):
@@ -1513,8 +1058,8 @@ async def poll(ctx, *args, force=False, dry=False, timeout=120, **kwargs):
 
 
 @bot.command()
-@advanced_perm_check_function(is_not_priv)
-@log_call
+@decorators.advanced_perm_check_function(is_not_priv)
+@decorators.log_call
 @my_help.help_decorator("Shoot somebody", "!shoot @user num")
 async def shoot(ctx, *args, force=False, dry=False, **kwargs):
     """
@@ -1645,19 +1190,6 @@ async def test_embed(ctx, *args, **kwargs):
 #     logger.debug("Connected")
 
 
-if __name__ == "__main__":
-    try:
-        with open("token.txt", "rt") as file:
-            token = file.read()
-    except Exception as e:
-        print(f"{e}")
-        sys.exit(1)
-
-    os.makedirs("avatars", exist_ok=True)
-    my_help.create_help_dict()
-
-    bot.add_cog(CogTest(bot))
-
-    bot.run(token)
-    # asyncio.run(custom_run(token))
-    # 470285521 # permission int
+os.makedirs("avatars", exist_ok=True)
+my_help.create_help_dict()
+# bot.add_cog(CogTest(bot))
