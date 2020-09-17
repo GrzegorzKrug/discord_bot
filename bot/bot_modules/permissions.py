@@ -1,4 +1,11 @@
+from .definitions import YOUSHISU_ID
+
+
 class RestrictedError(PermissionError):
+    pass
+
+
+class CommandWithoutPermissions(PermissionError):
     pass
 
 
@@ -14,6 +21,13 @@ def is_priv(ctx, *args, **kwargs):
         raise RestrictedError("This command is restricted to private channels.")
     else:
         return True
+
+
+def is_bot_owner(ctx, *args, **kwargs):
+    if ctx.message.author.id == YOUSHISU_ID:
+        return True
+    else:
+        raise RestrictedError("This command is restricted to Youshisu.")
 
 
 def is_server_owner(ctx, *args, **kwargs):

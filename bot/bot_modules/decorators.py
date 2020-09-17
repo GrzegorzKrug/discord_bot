@@ -2,6 +2,8 @@ import asyncio
 import re
 
 from .loggers import logger
+from .permissions import CommandWithoutPermissions
+
 from discord.ext.commands import CommandError, Bot
 
 
@@ -153,6 +155,9 @@ def check_force_permission(ctx):
 
 
 def _check_advanced_perm(ctx, *args, checking_funcs=None, sudo=False, force=False, **kwargs):
+    if len(checking_funcs) <= 0:
+        raise CommandWithoutPermissions("Not checking any permission")
+
     if sudo and check_sudo_permission(ctx) or all(
             chk_f(ctx, *args, **kwargs) for chk_f in checking_funcs):
         if force:

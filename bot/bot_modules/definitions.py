@@ -37,3 +37,19 @@ class Help:
 
 my_help = Help()
 bot = Bot(command_prefix='!', case_insensitive=True, help_command=None)
+EMOJIS = {
+        '1': '1️⃣',
+        '2': '2️⃣',
+        '3': '3️⃣',
+        '4': '4️⃣',
+        '5': '5️⃣',
+        '6': '6️⃣',
+        '7': '7️⃣',
+        '8': '8️⃣',
+        '9': '9️⃣',
+        '10': '🔟'
+}
+RUDE = ['Why you bother me {0} ?!', 'Stop it {0}!', 'No, I do not like that {0}.', "Go away {0}."]
+GLOBAL_SERVERS = {755063230300160030, 755065402777796663, 755083175491010590}
+YOUSHISU_ID = 147795752943353856
+BOT_URL = r"https://discord.com/api/oauth2/authorize?client_id=750688123008319628&permissions=470019283&scope=bot"

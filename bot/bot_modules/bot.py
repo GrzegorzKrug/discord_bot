@@ -17,26 +17,9 @@ from discord import Activity, ActivityType, Status, Embed, Colour
 from .decorators import *
 from .permissions import *
 from .loggers import logger
-from .definitions import my_help, bot
+from .definitions import *
 
 from .eft import CogTest
-
-EMOJIS = {
-        '1': '1️⃣',
-        '2': '2️⃣',
-        '3': '3️⃣',
-        '4': '4️⃣',
-        '5': '5️⃣',
-        '6': '6️⃣',
-        '7': '7️⃣',
-        '8': '8️⃣',
-        '9': '9️⃣',
-        '10': '🔟'
-}
-RUDE = ['Why you bother me {0} ?!', 'Stop it {0}!', 'No, I do not like that {0}.', "Go away {0}."]
-GLOBAL_SERVERS = {755063230300160030, 755065402777796663, 755083175491010590}
-YOUSHISU_ID = 147795752943353856
-BOT_URL = r"https://discord.com/api/oauth2/authorize?client_id=750688123008319628&permissions=470019283&scope=bot"
 
 
 @bot.command(aliases=["invite_bot", "invite_me", 'join'])
@@ -419,6 +402,11 @@ async def on_command_error(ctx, command_error):
         await ctx.message.add_reaction("⛔")
         await ctx.channel.send(f"{command_error.original} '!{invoked}'")
 
+    elif text_error.startswith("Command raised an exception: CommandWithoutPermissions"):
+        logger.error(f"Command is free to all users: '{text}', server: '{server}'")
+        await ctx.message.add_reaction("⛔")
+        await ctx.channel.send(f"Command must be validated, sorry. '!{invoked}'")
+
     elif "required positional argument" in text_error:
         await ctx.channel.send(f"Some arguments are missing: '{command_error.original}'")
 
@@ -755,9 +743,10 @@ async def react(ctx, *args, **kwargs):
     await message.delete()
 
 
-@bot.command(name="saveme")
+@bot.command()
+@advanced_perm_check_function(bot, is_bot_owner)
 @log_call_function
-async def save_avatar(ctx):
+async def save(ctx, *args, **kwargs):
     """
     Saves avatar in directory
     Args:
@@ -766,11 +755,28 @@ async def save_avatar(ctx):
     Returns:
 
     """
-    avatar_url = ctx.author.avatar_url
-    name = ctx.author.name
+    if "all" in args:
+        count = 0
+        for member in ctx.guild.members:
+            try:
+                avatar_url = member.avatar_url
+                name = member.name
+                image = await get_picture(avatar_url)
+                save_image(image, f"avatars/{name}.png")
+                count += 1
 
-    image = await get_picture(avatar_url)
-    save_image(image, f"avatars/{name}.png")
+            except Exception as err:
+                logger.warning(f"@{member} has probably gif, {err}")
+
+            await asyncio.sleep(0.1)
+        await ctx.send(f"Saved {count} avatars")
+    # else:
+    #     return None
+    #     avatar_url = ctx.author.avatar_url
+    #     name = ctx.author.name
+    #
+    #     image = await get_picture(avatar_url)
+    #     save_image(image, f"avatars/{name}.png")
 
 
 @bot.command(aliases=['hi'])

@@ -28,3 +28,9 @@ class CogTest(Cog):
         logger.debug(f"Eft url: {url}")
         # results = requests.get(url)
         # print(results.text)
+
+    @command()
+    @advanced_perm_check_method(is_bot_owner)
+    @log_call_method
+    async def ammo(self, ctx, *args, **kwargs):
+        pass
