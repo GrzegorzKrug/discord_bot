@@ -75,6 +75,7 @@ def _get_advanced_args(bot, ctx, *args, bold_name=False, **kwargs):
         else:
             good_args.append(arg)
             text_args.append(arg)
+
     good_args = tuple(good_args)
     text = ' '.join(text_args)
     kwargs['text'] = text
@@ -100,7 +101,6 @@ def advanced_args_function(bot, bold_name=False):
                 logger.error(f"Text is already in advanced args: {text}")
 
             good_args, kwargs = _get_advanced_args(bot, ctx, *args, bold_name=bold_name, **kwargs)
-
             output = await fun(ctx, *good_args, **kwargs)
             return output
 

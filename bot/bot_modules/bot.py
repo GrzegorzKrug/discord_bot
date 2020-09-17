@@ -37,8 +37,9 @@ GLOBAL_SERVERS = {755063230300160030, 755065402777796663, 755083175491010590}
 
 
 @bot.command(aliases=["invite_bot", "invite_me", 'join'])
+@advanced_args_function(bot)
 @log_call
-async def invite(ctx, *args):
+async def invite(ctx, *args, **kwargs):
     url_invite = r"https://discord.com/api/oauth2/authorize?client_id=750688123008319628&permissions=470019283&scope=bot"
     embed = Embed(title=f"Invite me!", url=url_invite)
     embed.set_author(name=f"{bot.user.name}", icon_url=bot.user.avatar_url)
@@ -46,7 +47,12 @@ async def invite(ctx, *args):
     embed.set_thumbnail(url=bot.user.avatar_url)
 
     success = 0
-    if ctx.message.mentions or args:
+    if "priv" in args:
+        await ctx.author.send(f"Here is my invitation:", embed=embed)
+        await ctx.send(f"✅ Invite sent to {ctx.author.mention}.")
+
+    elif ctx.message.mentions or args:
+        args = list(set(args))
         for user in ctx.message.mentions:
             try:
                 await user.send(f"Here is my invitation:", embed=embed)
@@ -69,14 +75,7 @@ async def invite(ctx, *args):
                 pass
 
         await ctx.message.add_reaction("✅")
-        await ctx.send(f"Invite sent to {success} users:", embed=embed)
-
-    elif "priv" not in args:
-        await ctx.send(f"Here is my invitation:", embed=embed)
-
-    else:
-        await ctx.author.send(f"Here is my invitation:", embed=embed)
-        await ctx.send(f"✅ Invite sent to {ctx.author.mention}.")
+        await ctx.send(f"Invite sent to {success} user{'s' if success > 1 else ''}.")
 
 
 @bot.command(aliases=["bot"])
@@ -90,7 +89,7 @@ async def about(ctx, *args):
     embed.add_field(name="Customize", value=f"You are free to customise bot", inline=False)
     embed.add_field(name="Global-chat", value=f"Use this bot speak with different servers", inline=False)
     embed.add_field(name="!help", value=f"Get help menu", inline=False)
-    embed.add_field(name="Current s!ervers", value=f"{len(bot.guilds)}", inline=False)
+    embed.add_field(name="Current servers", value=f"{len(bot.guilds)}", inline=False)
     embed.set_thumbnail(url=bot.user.avatar_url)
 
     await ctx.send(embed=embed)
@@ -122,7 +121,8 @@ def world_wide_format(message, msg_type=None):
 
     col = Colour.from_rgb(60, 150, 255)
 
-    if not msg_type or msg_type not in ['plain', 'tiny', 'compact', 'short', 'big_short', 'thick',
+    if not msg_type or msg_type not in ['plain', 'tiny', 'compact', "normal",
+                                        'short', 'big_short', 'thick',
                                         'code', 'code_big']:
         msg_type = "normal"
 
@@ -173,7 +173,6 @@ def world_wide_format(message, msg_type=None):
         embed.set_thumbnail(url=message.author.avatar_url)
         text = None
 
-
     elif msg_type == "code":
         message.content = string_mention_converter(bot, message.guild, message.content, bold_name=True)
         embed = Embed(colour=col, description=message.content)
@@ -200,8 +199,8 @@ def world_wide_format(message, msg_type=None):
 
 
 @bot.command()
-@my_help.help_decorator("Show global messages examples")
 @log_call
+@my_help.help_decorator("Show global messages examples")
 async def global_examples(ctx, *args, **kwargs):
     """
 Examples used in global chat. Default 'field'
@@ -420,9 +419,9 @@ async def on_member_remove(member):
 
 
 @bot.command()
+@advanced_perm_check_function(bot, is_not_priv)
 @log_call
 @my_help.help_decorator("You can check how many users is on server")
-@advanced_perm_check_function(bot, is_not_priv)
 async def status(ctx, *args, **kwargs):
     # member = random.choice(ctx.guild.members)
     color = Colour.from_rgb(10, 180, 50)
@@ -472,8 +471,8 @@ async def purge_all(ctx, amount, *args, **kwargs):
 
 @bot.command()
 @advanced_perm_check_function(bot, is_server_owner, is_not_priv)
-@log_call
 @delete_call
+@log_call
 @my_help.help_decorator("Removes user X messages", "!purge_id user_id amount")
 async def purge_id(ctx, authorid, amount, *args, **kwargs):
     """
@@ -503,8 +502,8 @@ async def purge_id(ctx, authorid, amount, *args, **kwargs):
 
 @bot.command()
 @advanced_perm_check_function(bot, is_server_owner, is_not_priv)
-@log_call
 @delete_call
+@log_call
 @my_help.help_decorator("Removes only bot messages", "!purge_bot amount")
 async def purge_bot(ctx, amount, *args, **kwargs):
     channel = ctx.channel
@@ -764,8 +763,8 @@ async def hello(ctx, *args):
 
 
 @bot.command(aliases=['h', 'help'])
-@log_call
 @advanced_args_function(bot)
+@log_call
 async def _help(ctx, cmd_key=None, *args, full=False, **kwargs):
     embed = Embed(colour=Colour.from_rgb(60, 255, 150))
     embed.set_author(name=f"{bot.user.name} help menu")
@@ -798,8 +797,8 @@ async def _help(ctx, cmd_key=None, *args, full=False, **kwargs):
 
 @bot.command()
 @delete_call
-@log_call
 @advanced_perm_check_function(bot, is_not_priv, this_is_disabled)
+@log_call
 async def countdown(ctx, num=10, dry=False, force=False, **kwargs):
     try:
         num = int(num)
@@ -890,8 +889,8 @@ async def sweeper(ctx, *args):
 
 
 @bot.command()
-@log_call
 @advanced_perm_check_function(bot, this_is_disabled)
+@log_call
 async def ask(ctx, *args, **kwargs):
     users = []
     text = []
@@ -928,12 +927,12 @@ async def ask(ctx, *args, **kwargs):
 @log_call
 @my_help.help_decorator("Poll with maximum 10 answers. Minimum 2 answers, maximum 10. timeout is optional",
                         "!poll question? ans1, ...")
-async def poll(ctx, *args, force=False, dry=False, timeout=120, **kwargs):
+async def poll(ctx, *args, force=False, dry=False, timeout=180, **kwargs):
     """
     Multi choice poll with maximum 10 answers
     Example `!poll Question, answer1, answer2, .... answer10`
     Available delimiters: . ; ,
-    You can add more time with `timeout=200`, default 120, maximum is 1200 (20 min)
+    You can add more time with `timeout=200`, default 180, maximum is 1200 (20 min)
     Use `-d` for dryrun
     Args:
         ctx:
@@ -1170,14 +1169,6 @@ async def test_embed(ctx, *args, **kwargs):
     embed.set_author(name="You**sh**isu")
     embed.set_footer(text='your **text**', icon_url=pic_url)
     await ctx.send(embed=embed, content="content")
-
-
-# async def custom_run(token):
-#     logger.debug("Custom run")
-#     await bot.login(token)
-#     logger.debug("Logged in")
-#     await bot.connect(reconnect=True)
-#     logger.debug("Connected")
 
 
 os.makedirs("avatars", exist_ok=True)
