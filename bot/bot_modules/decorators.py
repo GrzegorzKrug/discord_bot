@@ -4,7 +4,7 @@ import re
 from .loggers import logger
 from .permissions import CommandWithoutPermissions
 
-from discord.ext.commands import CommandError, Bot
+from discord.ext.commands import CommandError
 
 
 def string_mention_converter(bot, guild, text: "input str", bold_name=True) -> "String":

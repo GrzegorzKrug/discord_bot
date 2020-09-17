@@ -10,7 +10,6 @@ import sys
 import os
 import re
 
-from discord.ext.commands import Bot, CommandError, Cog, command
 from discord.ext import tasks
 from discord import Activity, ActivityType, Status, Embed, Colour
 

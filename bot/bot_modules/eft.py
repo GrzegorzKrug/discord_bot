@@ -1,4 +1,4 @@
-from discord.ext.commands import Bot, CommandError, Cog, command
+from discord.ext.commands import  Cog, command
 from .permissions import *
 from .decorators import *
 from .definitions import bot, my_help
