@@ -111,7 +111,7 @@ def advanced_args_function(bot, bold_name=False):
     return wrapper
 
 
-def advanced_args_method(bot=None, bold_name=False):
+def advanced_args_method(bold_name=False):
     """
     Decorator that translates args to create flags and converts string into kwargs.
     Args:
@@ -130,7 +130,7 @@ def advanced_args_method(bot=None, bold_name=False):
             if text:
                 logger.error(f"Text is already in advanced args: {text}")
 
-            good_args, kwargs = _get_advanced_args(bot, ctx, *args, bold_name=bold_name, **kwargs)
+            good_args, kwargs = _get_advanced_args(cls, ctx, *args, bold_name=bold_name, **kwargs)
 
             output = await fun(cls, ctx, *good_args, **kwargs)
             return output
@@ -192,7 +192,7 @@ def advanced_perm_check_function(bot, *checking_funcs, bold_name=False):
     return decorator
 
 
-def advanced_perm_check_method(bot, *checking_funcs, bold_name=False):
+def advanced_perm_check_method(*checking_funcs, bold_name=False):
     """
     Check channels and permissions, use -s -sudo or -a -admin to run it.
     Args:
@@ -203,7 +203,7 @@ def advanced_perm_check_method(bot, *checking_funcs, bold_name=False):
     """
 
     def decorator(fun):
-        @advanced_args_method(bot, bold_name)
+        @advanced_args_method(bold_name)
         async def f(cls, *args, sudo=False, force=False, **kwargs):
             valid, force = _check_advanced_perm(*args,
                                                 sudo=sudo, force=force, **kwargs,
@@ -290,23 +290,43 @@ def trash_after(bot, timeout=600):
     return function
 
 
-def log_call(fun):
+def _log_call(ctx, *args, **kwargs):
+    if ctx.guild:
+        where = f"#{ctx.channel}, {ctx.guild.name} ({ctx.guild.id})"
+    else:
+        where = f"{ctx.channel}"
+    logger.info(f"Invo: '{ctx.message.content}', Args:{args}, Kwargs:{kwargs}. {ctx.message.author}, {where}")
+
+
+def log_call_function(fun):
     """
     Decorator, logs function.
     Args:
-        timeout: Integer, default 600
-
     Returns:
         message object returned by calling given function with given params
     """
 
     async def decorator(ctx, *args, **kwargs):
-        if ctx.guild:
-            where = f"#{ctx.channel}, {ctx.guild.name} ({ctx.guild.id})"
-        else:
-            where = f"{ctx.channel}"
-        logger.info(f"Invo: '{ctx.message.content}', Args:{args}, Kwargs:{kwargs}. {ctx.message.author}, {where}")
+        _log_call(ctx, *args, **kwargs)
         message = await fun(ctx, *args, **kwargs)
+        return message
+
+    decorator.__name__ = fun.__name__
+    decorator.__doc__ = fun.__doc__
+    return decorator
+
+
+def log_call_method(fun):
+    """
+    Decorator, logs cog method.
+    Args:
+    Returns:
+        message object returned by calling given function with given params
+    """
+
+    async def decorator(cls, ctx, *args, **kwargs):
+        _log_call(ctx, *args, **kwargs)
+        message = await fun(cls, ctx, *args, **kwargs)
         return message
 
     decorator.__name__ = fun.__name__

@@ -9,16 +9,16 @@ class CogTest(Cog):
         self.bot = bot
 
     @command()
-    @advanced_perm_check_method(bot)
+    @advanced_perm_check_method()
     @my_help.help_decorator("cog1 test")
     async def cog1(self, ctx, *args, text=None, **kwargs):
         print("Cog1")
         await ctx.send(f"txt: {text}")
 
     @command()
-    @advanced_args_method(bot)
-    @log_call
-    async def eft(ctx, *keyword, dry=False, **kwargs):
+    @advanced_args_method()
+    @log_call_method
+    async def eft(self, ctx, *keyword, dry=False, **kwargs):
         search_url = r'https://escapefromtarkov.gamepedia.com/index.php?search='
         if len(keyword) < 1:
             await ctx.send("What? 🤔")

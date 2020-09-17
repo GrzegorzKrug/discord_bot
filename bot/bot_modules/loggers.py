@@ -12,7 +12,7 @@ def define_logger(name="logs", log_level="DEBUG", date_in_file=True,
         file_name = name
 
     if date_in_file:
-        dt = datetime.datetime.now().strftime("%Y-%M-%d")
+        dt = datetime.datetime.now().strftime("%Y-%m-%d")
         file_name = f"{dt}-" + file_name
     file_name += ".log"
 

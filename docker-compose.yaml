@@ -2,7 +2,7 @@
 
 services:
   postgres_db:
-    image: postgres:10.0-alpine
+    image: postgres:12.4
     command: postgres -c 'max_connections=500'
     volumes:
       - ./postgres-data:/var/lib/postgresql/data
@@ -19,6 +19,6 @@ services:
       dockerfile: dockerfile_bot
     image: yasiu_bot:latest
     volumes:
-      - .:/app
-    command: bash -c "python bot/start_bot.py"
+      - ./bot/:/app
+    command: bash -c "python start_bot.py"
     restart: always

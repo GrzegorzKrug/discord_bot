@@ -41,7 +41,7 @@ BOT_URL = r"https://discord.com/api/oauth2/authorize?client_id=75068812300831962
 
 @bot.command(aliases=["invite_bot", "invite_me", 'join'])
 @advanced_args_function(bot)
-@log_call
+@log_call_function
 async def invite(ctx, *args, **kwargs):
     embed = Embed(title=f"Invite me!", url=BOT_URL)
     embed.set_author(name=f"{bot.user.name}", icon_url=bot.user.avatar_url)
@@ -86,7 +86,7 @@ async def invite(ctx, *args, **kwargs):
 
 
 @bot.command(aliases=["bot"])
-@log_call
+@log_call_function
 @my_help.help_decorator("General bot information")
 async def about(ctx):
     embed = Embed(title=f"Invite me!", url=BOT_URL)
@@ -104,8 +104,8 @@ async def about(ctx):
     await ctx.send(embed=embed)
 
 
-@bot.command()
-@log_call
+@bot.command(aliases=['server', 'on', 'where'])
+@log_call_function
 @my_help.help_decorator("Servers that bot is connected to")
 async def servers(ctx, *args, **kwargs):
     """
@@ -235,7 +235,7 @@ def world_wide_format(message, msg_type=None):
 
 
 @bot.command()
-@log_call
+@log_call_function
 @my_help.help_decorator("Show global messages examples")
 async def global_examples(ctx, *args, **kwargs):
     """
@@ -456,7 +456,7 @@ async def on_member_remove(member):
 
 @bot.command()
 @advanced_perm_check_function(bot, is_not_priv)
-@log_call
+@log_call_function
 @my_help.help_decorator("You can check how many users is on server")
 async def status(ctx, *args, **kwargs):
     # member = random.choice(ctx.guild.members)
@@ -478,7 +478,7 @@ def get_list_non_offline_members(members):
 
 @bot.command(aliases=['purge'])
 @advanced_perm_check_function(bot, is_server_owner, is_not_priv)
-@log_call
+@log_call_function
 @my_help.help_decorator("Removes X messages", "!purge amount")
 async def purge_all(ctx, amount, *args, **kwargs):
     """
@@ -507,7 +507,7 @@ async def purge_all(ctx, amount, *args, **kwargs):
 @bot.command()
 @advanced_perm_check_function(bot, is_server_owner, is_not_priv)
 @delete_call
-@log_call
+@log_call_function
 @my_help.help_decorator("Removes user X messages", "!purge_id user_id amount")
 async def purge_id(ctx, authorid, amount, *args, **kwargs):
     """
@@ -538,7 +538,7 @@ async def purge_id(ctx, authorid, amount, *args, **kwargs):
 @bot.command()
 @advanced_perm_check_function(bot, is_server_owner, is_not_priv)
 @delete_call
-@log_call
+@log_call_function
 @my_help.help_decorator("Removes only bot messages", "!purge_bot amount")
 async def purge_bot(ctx, amount, *args, **kwargs):
     channel = ctx.channel
@@ -555,7 +555,7 @@ async def purge_bot(ctx, amount, *args, **kwargs):
 
 @bot.command()
 @advanced_perm_check_function(bot, is_not_priv)
-@log_call
+@log_call_function
 @my_help.help_decorator("Interactive mini game. No borders on sides. Get to end.", "!slipper (height)")
 async def slipper(ctx, dimy=10, dimx=6, *args, **kwargs):
     """
@@ -707,7 +707,7 @@ def board_to_monotext(board, el_size=2, distance_between=0,
 
 @bot.command(aliases=['global'])
 @advanced_perm_check_function(bot, is_server_owner, is_not_priv)
-@log_call
+@log_call_function
 async def _global(ctx, key=None, *args, **kwargs):
     if type(key) is str and key.lower() == "add":
         GLOBAL_SERVERS.add(ctx.channel.id)
@@ -720,11 +720,9 @@ async def _global(ctx, key=None, *args, **kwargs):
         await ctx.send("Global channel has been removed")
 
 
-
-
 @bot.command()
 @advanced_perm_check_function(bot, this_is_disabled)
-@log_call
+@log_call_function
 async def spam(ctx, num=1, *args, **kwargs):
     num = int(num)
     if num > 100:
@@ -758,7 +756,7 @@ async def react(ctx, *args, **kwargs):
 
 
 @bot.command(name="saveme")
-@log_call
+@log_call_function
 async def save_avatar(ctx):
     """
     Saves avatar in directory
@@ -776,7 +774,7 @@ async def save_avatar(ctx):
 
 
 @bot.command(aliases=['hi'])
-@log_call
+@log_call_function
 async def hello(ctx, *args):
     pool = ["Hello there {0}", "How is it going today {0} ?", "What's up {0}?", "Hey {0}",
             "Hi {0}, do you feel well today?", "Good day {0}"]
@@ -786,7 +784,7 @@ async def hello(ctx, *args):
 
 @bot.command(aliases=['h', 'help'])
 @advanced_args_function(bot)
-@log_call
+@log_call_function
 async def _help(ctx, cmd_key=None, *args, full=False, **kwargs):
     embed = Embed(colour=Colour.from_rgb(60, 255, 150))
     embed.set_author(name=f"{bot.user.name} help menu")
@@ -820,7 +818,7 @@ async def _help(ctx, cmd_key=None, *args, full=False, **kwargs):
 @bot.command()
 @delete_call
 @advanced_perm_check_function(bot, is_not_priv, this_is_disabled)
-@log_call
+@log_call_function
 async def countdown(ctx, num=10, dry=False, force=False, **kwargs):
     try:
         num = int(num)
@@ -846,7 +844,7 @@ async def countdown(ctx, num=10, dry=False, force=False, **kwargs):
 
 @bot.command()
 @delete_call
-@log_call
+@log_call_function
 @my_help.help_decorator("Sweeper game, don't blow it up", "!sweeper (size) (bombs)")
 async def sweeper(ctx, *args):
     """
@@ -912,7 +910,7 @@ async def sweeper(ctx, *args):
 
 @bot.command()
 @advanced_perm_check_function(bot, this_is_disabled)
-@log_call
+@log_call_function
 async def ask(ctx, *args, **kwargs):
     users = []
     text = []
@@ -946,7 +944,7 @@ async def ask(ctx, *args, **kwargs):
 
 @bot.command(aliases=['czy', 'is', 'what', 'how'])
 @advanced_perm_check_function(bot, is_not_priv)
-@log_call
+@log_call_function
 @my_help.help_decorator("Poll with maximum 10 answers. Minimum 2 answers, maximum 10. timeout is optional",
                         "!poll question? ans1, ...")
 async def poll(ctx, *args, force=False, dry=False, timeout=180, **kwargs):
@@ -1070,7 +1068,7 @@ async def poll(ctx, *args, force=False, dry=False, timeout=180, **kwargs):
 
 @bot.command()
 @advanced_perm_check_function(bot, is_not_priv)
-@log_call
+@log_call_function
 @my_help.help_decorator("Shoot somebody", "!shoot @user num")
 async def shoot(ctx, *args, force=False, dry=False, **kwargs):
     """

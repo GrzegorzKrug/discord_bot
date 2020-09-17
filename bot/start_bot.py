@@ -1,4 +1,6 @@
 import sys
+import os
+
 from bot_modules.bot import bot
 
 try:
