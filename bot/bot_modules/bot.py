@@ -11,6 +11,7 @@ import os
 import re
 
 from discord.ext.commands import Bot, CommandError, Cog, command
+from discord.ext import tasks
 from discord import Activity, ActivityType, Status, Embed, Colour
 
 from .decorators import *
@@ -35,14 +36,14 @@ EMOJIS = {
 RUDE = ['Why you bother me {0} ?!', 'Stop it {0}!', 'No, I do not like that {0}.', "Go away {0}."]
 GLOBAL_SERVERS = {755063230300160030, 755065402777796663, 755083175491010590}
 YOUSHISU_ID = 147795752943353856
+BOT_URL = r"https://discord.com/api/oauth2/authorize?client_id=750688123008319628&permissions=470019283&scope=bot"
 
 
 @bot.command(aliases=["invite_bot", "invite_me", 'join'])
 @advanced_args_function(bot)
 @log_call
 async def invite(ctx, *args, **kwargs):
-    url_invite = r"https://discord.com/api/oauth2/authorize?client_id=750688123008319628&permissions=470019283&scope=bot"
-    embed = Embed(title=f"Invite me!", url=url_invite)
+    embed = Embed(title=f"Invite me!", url=BOT_URL)
     embed.set_author(name=f"{bot.user.name}", icon_url=bot.user.avatar_url)
     embed.add_field(name="About", value=f"This bot is awesome")
     embed.set_thumbnail(url=bot.user.avatar_url)
@@ -86,10 +87,9 @@ async def invite(ctx, *args, **kwargs):
 
 @bot.command(aliases=["bot"])
 @log_call
-@my_help.help_decorator("General bot information", "!about")
-async def about(ctx, *args):
-    url_invite = r"https://discord.com/api/oauth2/authorize?client_id=750688123008319628&permissions=470019283&scope=bot"
-    embed = Embed(title=f"Invite me!", url=url_invite)
+@my_help.help_decorator("General bot information")
+async def about(ctx):
+    embed = Embed(title=f"Invite me!", url=BOT_URL)
     embed.set_author(name=f"{bot.user.name}", icon_url=bot.user.avatar_url)
     embed.add_field(name="Me", value=f"I am awesome, and got plenty of features", inline=False)
     embed.add_field(name="Customize", value=f"You are free to customise bot", inline=False)
@@ -98,6 +98,33 @@ async def about(ctx, *args):
     embed.add_field(name="Current servers", value=f"{len(bot.guilds)}", inline=False)
     embed.set_thumbnail(url=bot.user.avatar_url)
 
+    autor = bot.get_user(YOUSHISU_ID)
+    embed.set_footer(text="Dev: Youshisu", icon_url=autor.avatar_url)
+
+    await ctx.send(embed=embed)
+
+
+@bot.command()
+@log_call
+@my_help.help_decorator("Servers that bot is connected to")
+async def servers(ctx, *args, **kwargs):
+    """
+    Send embed message, showing which servers are using this bot.
+    Args:
+        ctx:
+
+    Returns:
+
+    """
+    servers = [(sv.name, len(sv.members), len(get_list_non_offline_members(sv.members)))
+               for sv in bot.guilds]
+    servers.sort(key=lambda x: (x[1], x[2]), reverse=True)
+    description = f"\n".join(
+            f"`{name:<25}: online: {online:<5}, all: {all_mem:<5}`" for name, all_mem, online in servers)
+
+    embed = Embed(title=f"Invite me!", description=description, url=BOT_URL)
+    embed.set_author(name=f"I am on {len(servers)} servers")
+    embed.set_thumbnail(url=bot.user.avatar_url)
     autor = bot.get_user(YOUSHISU_ID)
     embed.set_footer(text="Dev: Youshisu", icon_url=autor.avatar_url)
 
@@ -440,14 +467,13 @@ async def status(ctx, *args, **kwargs):
     embed.add_field(name="Members:", value=f"{len(ctx.guild.members)} ")
     embed.add_field(name="Channels:", value=f"{len(ctx.guild.channels)}")
 
-    online = get_online_count(ctx.guild.members)
+    online = len(get_list_non_offline_members(ctx.guild.members))
     embed.add_field(name="Online:", value=f"{online}")
     await ctx.send(embed=embed)
 
 
-def get_online_count(members):
-    online = [member for member in members if str(member.status) != 'offline']
-    return len(online)
+def get_list_non_offline_members(members):
+    return [member for member in members if str(member.status) != 'offline']
 
 
 @bot.command(aliases=['purge'])
@@ -694,19 +720,6 @@ async def _global(ctx, key=None, *args, **kwargs):
         await ctx.send("Global channel has been removed")
 
 
-@bot.command()
-@advanced_args_function(bot)
-@log_call
-async def eft(ctx, *keyword, dry=False, **kwargs):
-    search_url = r'https://escapefromtarkov.gamepedia.com/index.php?search='
-    if len(keyword) < 1:
-        await ctx.send("What? 🤔")
-        return None
-    search_phrase = '+'.join(keyword)
-    url = search_url + search_phrase
-    logger.debug(f"Eft url: {url}")
-    # results = requests.get(url)
-    # print(results.text)
 
 
 @bot.command()

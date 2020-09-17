@@ -1,0 +1,14 @@
+FROM python:3.8.5
+
+ENV PYTHONBUFFERED 1
+
+COPY requirements.txt /app/
+WORKDIR /app
+
+RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+RUN apt-get update
+RUN apt-get install 'ffmpeg'\
+    'libsm6'\
+    'libxext6'  -y
+
+RUN pip install -r requirements.txt
