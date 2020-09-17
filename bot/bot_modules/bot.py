@@ -34,6 +34,7 @@ EMOJIS = {
 }
 RUDE = ['Why you bother me {0} ?!', 'Stop it {0}!', 'No, I do not like that {0}.', "Go away {0}."]
 GLOBAL_SERVERS = {755063230300160030, 755065402777796663, 755083175491010590}
+YOUSHISU_ID = 147795752943353856
 
 
 @bot.command(aliases=["invite_bot", "invite_me", 'join'])
@@ -52,6 +53,8 @@ async def invite(ctx, *args, **kwargs):
         await ctx.send(f"✅ Invite sent to {ctx.author.mention}.")
 
     elif ctx.message.mentions or args:
+        await ctx.message.add_reaction("⏳")
+
         args = list(set(args))
         for user in ctx.message.mentions:
             try:
@@ -75,7 +78,10 @@ async def invite(ctx, *args, **kwargs):
                 pass
 
         await ctx.message.add_reaction("✅")
+        await ctx.message.clear_reaction("⏳")
         await ctx.send(f"Invite sent to {success} user{'s' if success > 1 else ''}.")
+    else:
+        await ctx.send(f"Here is my invitation:", embed=embed)
 
 
 @bot.command(aliases=["bot"])
@@ -91,6 +97,9 @@ async def about(ctx, *args):
     embed.add_field(name="!help", value=f"Get help menu", inline=False)
     embed.add_field(name="Current servers", value=f"{len(bot.guilds)}", inline=False)
     embed.set_thumbnail(url=bot.user.avatar_url)
+
+    autor = bot.get_user(YOUSHISU_ID)
+    embed.set_footer(text="Dev: Youshisu", icon_url=autor.avatar_url)
 
     await ctx.send(embed=embed)
 
