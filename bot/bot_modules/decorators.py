@@ -3,8 +3,10 @@ import re
 
 from .loggers import logger
 from .permissions import CommandWithoutPermissions
+from .definitions import send_disapprove
 
 from discord.ext.commands import CommandError
+from discord import HTTPException
 
 
 def string_mention_converter(bot, guild, text: "input str", bold_name=True) -> "String":
@@ -37,6 +39,48 @@ def string_mention_converter(bot, guild, text: "input str", bold_name=True) -> "
             role_name = f"{role}"
         new_text = new_text.replace(f"<@&{role}>", f"@*{role_name}*")
     return new_text
+
+
+def check_query_method(coro):
+    async def decorator(cls, ctx, *args, **kwargs):
+        try:
+            result = await coro(cls, ctx, *args, **kwargs)
+            return result
+        except HTTPException as err:
+            logger.error(err)
+            await send_disapprove(ctx)
+            await ctx.send("Message is too long. Can not send results.")
+
+        except AttributeError as err:
+            logger.error(err)
+            await send_disapprove(ctx)
+            await ctx.send("Invalid query")
+
+    decorator.__name__ = coro.__name__
+    decorator.__doc__ = coro.__doc__
+
+    return decorator
+
+
+def check_query_function(coro):
+    async def decorator(cls, ctx, *args, **kwargs):
+        try:
+            result = await coro(cls, ctx, *args, **kwargs)
+            return result
+        except HTTPException as err:
+            logger.error(err)
+            await send_disapprove(ctx)
+            await ctx.send("Message is too long. Can not send results.")
+
+        except AttributeError as err:
+            logger.error(err)
+            await send_disapprove(ctx)
+            await ctx.send("Invalid query")
+
+    decorator.__name__ = coro.__name__
+    decorator.__doc__ = coro.__doc__
+
+    return decorator
 
 
 def _get_advanced_args(bot, ctx, *args, bold_name=False, **kwargs):
@@ -245,6 +289,29 @@ def delete_call(fun):
             logger.warning(f"Can not delete call: {pe}")
 
         return result
+
+    decorator.__name__ = fun.__name__
+    decorator.__doc__ = fun.__doc__
+    return decorator
+
+
+def approve_fun(fun):
+    """
+    Decorator that adds reaction if success, else x.
+    Args:
+        fun:
+
+    Returns:
+        message object returned by calling given function with given params
+    """
+
+    async def decorator(ctx, *args, **kwargs):
+        try:
+            result = await fun(ctx, *args, **kwargs)
+            await ctx.message.add_reaction('✅')
+            return result
+        except Exception as pe:
+            await ctx.message.add_reaction('❌')
 
     decorator.__name__ = fun.__name__
     decorator.__doc__ = fun.__doc__

@@ -53,3 +53,11 @@ RUDE = ['Why you bother me {0} ?!', 'Stop it {0}!', 'No, I do not like that {0}.
 GLOBAL_SERVERS = {755063230300160030, 755065402777796663, 755083175491010590}
 YOUSHISU_ID = 147795752943353856
 BOT_URL = r"https://discord.com/api/oauth2/authorize?client_id=750688123008319628&permissions=470019283&scope=bot"
+
+
+async def send_approve(ctx):
+    await ctx.message.add_reaction('✅')
+
+
+async def send_disapprove(ctx):
+    await ctx.message.add_reaction('❌')
