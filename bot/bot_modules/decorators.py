@@ -1,9 +1,9 @@
 import asyncio
+import time
 import re
 
-from .loggers import logger
 from .permissions import CommandWithoutPermissions
-from .definitions import send_disapprove
+from .definitions import send_disapprove, logger
 
 from discord.ext.commands import CommandError
 from discord import HTTPException
@@ -76,6 +76,20 @@ def check_query_function(coro):
             logger.error(err)
             await send_disapprove(ctx)
             await ctx.send("Invalid query")
+
+    decorator.__name__ = coro.__name__
+    decorator.__doc__ = coro.__doc__
+
+    return decorator
+
+
+def log_duration_any(coro):
+    async def decorator(*args, **kwargs):
+        start = time.time()
+        result = await coro(*args, **kwargs)
+        stop = time.time()
+        logger.debug(f"Duration of {coro.__name__} is {stop - start:<5.2f}s")
+        return result
 
     decorator.__name__ = coro.__name__
     decorator.__doc__ = coro.__doc__

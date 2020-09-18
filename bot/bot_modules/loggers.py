@@ -4,8 +4,9 @@ import random
 import os
 
 
-def define_logger(name="logs", log_level="DEBUG", date_in_file=True,
-                  combined=True, add_timestamp=True):
+def define_logger(name="logs", path=None, extra_debug=None,
+                  date_in_file=True, combined=True, unique_logger=True,
+                  stream_lvl=None, file_lvl=None):
     if combined:
         file_name = "all"
     else:
@@ -16,40 +17,41 @@ def define_logger(name="logs", log_level="DEBUG", date_in_file=True,
         file_name = f"{dt}-" + file_name
     file_name += ".log"
 
-    if add_timestamp:
+    if unique_logger:
         unique_name = str(random.random())  # Random unique
     else:
         unique_name = name
 
     logger = logging.getLogger(unique_name)
-
-    # Switch log level from env variable
-    if log_level == "DEBUG":
-        logger.setLevel(logging.DEBUG)
-    elif log_level == "INFO":
-        logger.setLevel(logging.INFO)
-    elif log_level == "WARNING":
-        logger.setLevel(logging.WARNING)
-    elif log_level == "ERROR":
-        logger.setLevel(logging.ERROR)
-    elif log_level == "CRITICAL":
-        logger.setLevel(logging.CRITICAL)
-    else:
-        logger.setLevel(logging.WARNING)
+    logger.setLevel("DEBUG")
 
     # Log Handlers: Console and file
+    if path:
+        log_dir = os.path.abspath(path)
+    else:
+        log_dir = os.path.abspath('')
+
+    log_dir = os.path.join(log_dir, 'logs')
+
     try:
-        fh = logging.FileHandler(os.path.join(r'/logs', file_name),
+        fh = logging.FileHandler(os.path.join(log_dir, file_name),
                                  mode='a')
     except FileNotFoundError:
-        os.makedirs(r'logs', exist_ok=True)
-        fh = logging.FileHandler(os.path.join(r'logs', file_name),
+        os.makedirs(log_dir, exist_ok=True)
+        fh = logging.FileHandler(os.path.join(log_dir, file_name),
                                  mode='a')
 
     ch = logging.StreamHandler()
 
     # LEVEL
-    fh.setLevel("INFO")
+    if stream_lvl:
+        ch.setLevel(stream_lvl)
+    else:
+        ch.setLevel("DEBUG")
+    if file_lvl:
+        fh.setLevel(file_lvl)
+    else:
+        fh.setLevel("DEBUG")
 
     # Log Formatting
     formatter = logging.Formatter(
@@ -58,11 +60,15 @@ def define_logger(name="logs", log_level="DEBUG", date_in_file=True,
     ch.setFormatter(formatter)
 
     # Add handlers to logger
+    if extra_debug:
+        extra_fh = logging.FileHandler(os.path.join(log_dir, extra_debug),
+                                       mode='a')
+        extra_fh.setLevel("DEBUG")
+        extra_fh.setFormatter(formatter)
+        logger.addHandler(extra_fh)
+
     logger.addHandler(fh)
     logger.addHandler(ch)
-    logger.propagate = False  # this prevents other loggers I thinks from logging
+    logger.propagate = True  # this prevents other loggers I thinks from logging
 
     return logger
-
-
-logger = define_logger("Bot")

@@ -15,14 +15,13 @@ from discord import Activity, ActivityType, Status, Embed, Colour
 
 from .decorators import *
 from .permissions import *
-from .loggers import logger
 from .definitions import *
 
 from .eft import CogTest
 
 
 @bot.command(aliases=["invite_bot", "invite_me", 'join'])
-@advanced_args_function(bot)
+@advanced_perm_check_function(bot, is_not_priv)
 @log_call_function
 async def invite(ctx, *args, **kwargs):
     embed = Embed(title=f"Invite me!", url=BOT_URL)
@@ -316,8 +315,8 @@ Returns:
 async def on_message(message):
     if not message.guild:
         recipient = message.channel.recipient.name
-        logger.debug(
-                f"(priv) {message.author.name}: {message.content} to {recipient if message.author == bot.user else 'Me'}")
+        messenger.info(
+                f"(priv) {message.author}: {message.content} to {recipient if message.author == bot.user else 'Me'}")
 
     if message.author.bot:
         return None
@@ -325,7 +324,7 @@ async def on_message(message):
     servers = GLOBAL_SERVERS.copy()
     if not message.content.startswith("!") and message.channel.id in servers:
         logger.warning(f"Fixed worldwide chat")
-        logger.debug(
+        messenger.info(
                 f"world_wide message:\n"
                 f"{message.author}  from chid: {message.channel.id}, {message.guild}\n"
                 f"'{message.content}'")
@@ -350,7 +349,7 @@ async def on_ready():
     await _announcement([750696820736393261], "✅ Hey, i'm now online.")
     await bot.change_presence(activity=act, status=Status.online)
     logger.warning(f"On ready announcement is constant")
-    logger.debug(f"Going online as {bot.user.name}")
+    logger.info(f"Going online as {bot.user.name}")
 
 
 @bot.event
@@ -362,7 +361,7 @@ async def close():
     await bot.change_presence(activity=None, status=Status.offline)
 
     logger.warning(f"close announcement is constant")
-    logger.debug(f"Going offline")
+    logger.info(f"Going offline")
 
 
 @bot.command()
@@ -768,14 +767,9 @@ async def save(ctx, *args, **kwargs):
                 logger.warning(f"@{member} has probably gif, {err}")
 
             await asyncio.sleep(0.1)
-        await ctx.send(f"Saved {count} avatars")
-    # else:
-    #     return None
-    #     avatar_url = ctx.author.avatar_url
-    #     name = ctx.author.name
-    #
-    #     image = await get_picture(avatar_url)
-    #     save_image(image, f"avatars/{name}.png")
+        text = f"Saved {count} avatars"
+        logger.info(text)
+        await ctx.send(text)
 
 
 @bot.command(aliases=['hi'])

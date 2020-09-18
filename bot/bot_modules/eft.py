@@ -1,4 +1,5 @@
 import requests
+import aiohttp
 import pandas as pd
 import bs4
 
@@ -35,9 +36,10 @@ class CogTest(Cog):
         # results = requests.get(url)
         # print(results.text)
 
-    @command()
+    @command(aliases=['eftammoget'])
     @advanced_perm_check_method(is_bot_owner)
     @log_call_method
+    @log_duration_any
     async def eftgetammo(self, ctx, *args, **kwargs):
         """
         Request and process ammo spreadsheet in current shape.
@@ -50,6 +52,7 @@ class CogTest(Cog):
 
         """
         spread_sheet_url = r"https://docs.google.com/spreadsheets/d/1_l-gYeSt2MqIw62EdMZt_wefG0yO9L7dTaRM74c2J1w/htmlview#"
+        # res = aiohttp.request("get", spread_sheet_url)
         res = requests.get(spread_sheet_url)
         if res.status_code != 200:
             await ctx.send(f"Request failed: {res.status_code}")
@@ -153,21 +156,21 @@ class CogTest(Cog):
         if "gran" in query or "bar" in query or 'unde' in query:
             granade_df = pd.read_csv("granade_ammo.csv", dtype=str)
             embed = self.create_embed_granade(granade_df, priority="Damage")
-            return None
 
-        ammo_df = pd.read_csv("ammo.csv").round(2)
-
-        if "trac" in query:
-            ammo_df = ammo_df[ammo_df['Tracer'] == "Yes"]
-        elif "all" in query:
-            pass
         else:
-            ammo_df = ammo_df[
-                ammo_df["Caliber"].str.contains(query.lower()) |
-                ammo_df["Name"].str.contains(query.title())
-                ]
+            ammo_df = pd.read_csv("ammo.csv").round(2)
 
-        embed = self.create_embed_ammo(ammo_df, priority=priority)
+            if "trac" in query:
+                ammo_df = ammo_df[ammo_df['Tracer'] == "Yes"]
+            elif "all" in query:
+                pass
+            else:
+                ammo_df = ammo_df[
+                    ammo_df["Caliber"].str.contains(query.lower()) |
+                    ammo_df["Name"].str.contains(query.title())
+                    ]
+
+            embed = self.create_embed_ammo(ammo_df, priority=priority)
         if not embed:
             await ctx.send("Nothing matching found.")
         else:

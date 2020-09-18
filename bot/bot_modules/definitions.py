@@ -1,4 +1,5 @@
 from discord.ext.commands import Bot
+from .loggers import define_logger
 
 
 class Help:
@@ -61,3 +62,7 @@ async def send_approve(ctx):
 
 async def send_disapprove(ctx):
     await ctx.message.add_reaction('❌')
+
+
+logger = define_logger("Bot", path='..', file_lvl="INFO", stream_lvl="DEBUG", extra_debug="Debug")
+messenger = define_logger("Messenger", path='..', file_lvl="INFO", combined=False, date_in_file=True)
