@@ -907,12 +907,12 @@ async def sweeper(ctx, *args):
 @advanced_perm_check_function(is_not_priv)
 @my_help.help_decorator("Poll with maximum 10 answers. Minimum 2 answers, maximum 10. timeout is optional",
                         "!poll <question>? <ans1>, ..., <ans10> (timeout=<sec>)")
-async def poll(ctx, *args, force=False, dry=False, timeout=180, **kwargs):
+async def poll(ctx, *args, force=False, dry=False, timeout=2 * 60, **kwargs):
     """
     Multi choice poll with maximum 10 answers
     Example `!poll Question, answer1, answer2, .... answer10`
     Available delimiters: . ; ,
-    You can add more time with `timeout=200`, default 180, maximum is 1200 (20 min)
+    You can add more time with `timeout=200`, default 180, maximum is 3600 (1hour)
     Use `-d` for dryrun
     Args:
         ctx:
@@ -930,10 +930,10 @@ async def poll(ctx, *args, force=False, dry=False, timeout=180, **kwargs):
     finished_poll_color = Colour.from_rgb(30, 255, 0)
 
     timeout = float(timeout)
-    if timeout > 1200 and not force:
-        timeout = 1200
+    if timeout > 60 * 60 and not force:
+        timeout = 60 * 60
 
-    update_interval = 30 if 30 < timeout else timeout + 1
+    update_interval = 20 if 20 < timeout else timeout + 1
 
     if len(arr_text) < 3:
         await ctx.send(f"Got less than 1 questions and 2 answers, use some delimiter ?;,")
@@ -950,8 +950,10 @@ async def poll(ctx, *args, force=False, dry=False, timeout=180, **kwargs):
     elif len(answers) > 10:
         await ctx.send(f"Got more than 10 answers, sorry")
         return None
-
-    await ctx.message.delete()
+    try:
+        await ctx.message.delete()
+    except Exception:
+        pass
 
     answer_dict = {}
 
@@ -1005,7 +1007,7 @@ async def poll(ctx, *args, force=False, dry=False, timeout=180, **kwargs):
         embed = Embed(title=question, colour=poll_color)
         embed.set_author(name=ctx.author.name)
         embed.set_thumbnail(url=ctx.author.avatar_url)
-
+        embed.set_footer(text=f"Time left: {(end_time - time.time()) / 60:4.1f} min")
         for number in range(1, 11):
             try:
                 emoji = EMOJIS[str(number)]
@@ -1022,6 +1024,7 @@ async def poll(ctx, *args, force=False, dry=False, timeout=180, **kwargs):
             break
 
     embed.colour = finished_poll_color
+    embed.set_footer(text="")
     await poll.edit(content='🔒 Poll has ended', embed=embed)
     await poll.clear_reaction("🛑")
 
