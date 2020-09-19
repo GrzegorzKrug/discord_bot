@@ -331,7 +331,7 @@ def approve_fun(coro):
     return decorator
 
 
-def trash_after(bot, timeout=600, delete_with_TO=False):
+def trash_after(bot, timeout=600, delete_after_TO=False):
     """
     Decorator, that remove message after given time.
     Decorated function must return message!
@@ -370,7 +370,7 @@ def trash_after(bot, timeout=600, delete_with_TO=False):
                     await message.clear_reaction(EMOJIS['green_x'])
                 except Exception:
                     pass
-                if not delete_with_TO:
+                if not delete_after_TO:
                     return None
 
             await message.delete()
