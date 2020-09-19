@@ -744,6 +744,7 @@ async def react(ctx, *args, **kwargs):
 @bot.command()
 @advanced_perm_check_function(bot, is_bot_owner)
 @log_call_function
+@log_duration_any
 async def save(ctx, *args, **kwargs):
     """
     Saves avatar in directory
@@ -784,12 +785,15 @@ async def hello(ctx, *args):
 @bot.command(aliases=['h', 'help'])
 @advanced_args_function(bot)
 @log_call_function
+@my_help.help_decorator("Help function", "!help (command)", help_name="help")
 async def _help(ctx, cmd_key=None, *args, full=False, **kwargs):
     embed = Embed(colour=Colour.from_rgb(60, 255, 150))
     embed.set_author(name=f"{bot.user.name} help menu")
 
     if cmd_key:
         command = my_help.help_dict.get(cmd_key, None)
+        if not command:
+            command = my_help.alias_dict.get(cmd_key, None)
     else:
         command = None
 
@@ -808,7 +812,9 @@ async def _help(ctx, cmd_key=None, *args, full=False, **kwargs):
         for cmd, value in show_this:
             simple_text = value['simple']
             example = value['example']
-            embed.add_field(name=example, value=f"{simple_text}")
+            aliases = value['aliases']
+            inline = False if aliases else True
+            embed.add_field(name=example, value=f"{simple_text}", inline=inline)
 
     embed.set_thumbnail(url=bot.user.avatar_url)
     await ctx.send(embed=embed)
@@ -1132,6 +1138,7 @@ def save_image(image, path):
 
 
 @bot.command()
+@trash_after(bot)
 async def embed_table(ctx, *args):
     pic_url = r'https://external-content.duckduckgo.com/iu/?u=http%3A%2F%2Fpixel.nymag.com%2Fimgs%2Fdaily%2Fintelligencer%2F2014%2F12%2F08%2F08-grumpy-cat.o.jpg%2Fa_190x190.w1200.h630.jpg&f=1&nofb=1'
     description = "Comparison"
@@ -1163,7 +1170,46 @@ async def embed_table(ctx, *args):
     embed.set_thumbnail(url=author.avatar_url)
 
     embed.set_footer(text='your text', icon_url=pic_url)
-    await ctx.send(embed=embed, content="content")
+    message = await ctx.send(embed=embed, content="content")
+    return message
+
+
+@bot.command(aliases=['feedback', 'report', 'problem', 'suggestion', 'suggest', 'idea'])
+@advanced_args_function(bot)
+@log_call_function
+@my_help.help_decorator("Send feedback to author, problems or new ideas.",
+                        "!feedback text",
+                        aliases=['feedback', 'report', 'problem', 'suggestion', 'suggest', 'idea'],
+                        help_name="feedback")
+async def _user_feedback(ctx, *args, text, **kwargs):
+    """
+    Send text message to the developer.
+    Available commands:
+        !report <text>
+        !problem <text>
+        !suggestion <text>
+        !suggest <text>
+        !idea <text>
+        !feedback <text>
+
+    Args:
+        ctx:
+        *args:
+        text:
+        **kwargs:
+
+    Returns:
+
+    """
+    invoked = ctx.invoked_with
+    if invoked == "feedback":
+        feedback.info(f"{ctx.author}, {ctx.guild}, has sent feedback: {text}")
+    elif invoked == "report" or invoked == "problem":
+        feedback.warning(f"{ctx.author}, {ctx.guild}, has reported this problem: {text}")
+    elif invoked == "suggestion" or invoked == "suggest" or invoked == "tip" or invoked == "idea":
+        feedback.warning(f"{ctx.author}, {ctx.guild}, has a suggestion: {text}")
+    else:
+        feedback.warning(f"{ctx.author}, {ctx.guild}, send message: {text}")
 
 
 @bot.command()

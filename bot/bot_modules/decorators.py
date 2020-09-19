@@ -3,7 +3,7 @@ import time
 import re
 
 from .permissions import CommandWithoutPermissions
-from .definitions import send_disapprove, logger
+from .definitions import send_disapprove, logger, EMOJIS
 
 from discord.ext.commands import CommandError
 from discord import HTTPException
@@ -147,13 +147,14 @@ def advanced_args_function(bot, bold_name=False):
     """
     Decorator that translates args to create flags and converts string into kwargs.
     Args:
-        fun:
+        bot: bot instance
+        bold_name:
 
     Returns:
         message object returned by calling given function with given params
     """
 
-    def wrapper(fun):
+    def wrapper(coro):
         logger.warning(f"Advanced args are not supporting non kwargs functions")
 
         async def f(ctx, *args, text=None, **kwargs):
@@ -161,11 +162,11 @@ def advanced_args_function(bot, bold_name=False):
                 logger.error(f"Text is already in advanced args: {text}")
 
             good_args, kwargs = _get_advanced_args(bot, ctx, *args, bold_name=bold_name, **kwargs)
-            output = await fun(ctx, *good_args, **kwargs)
+            output = await coro(ctx, *good_args, **kwargs)
             return output
 
-        f.__name__ = fun.__name__
-        f.__doc__ = fun.__doc__
+        f.__name__ = coro.__name__
+        f.__doc__ = coro.__doc__
         return f
 
     return wrapper
@@ -175,16 +176,14 @@ def advanced_args_method(bold_name=False):
     """
     Decorator that translates args to create flags and converts string into kwargs.
     Args:
-        fun:
+        bold_name:
 
     Returns:
         message object returned by calling given function with given params
     """
 
-    def wrapper(fun):
+    def wrapper(coro):
         logger.warning(f"Advanced args are not supporting non kwargs functions")
-        if "." not in fun.__qualname__:
-            raise TypeError("This decorator is for methods")
 
         async def f(cls, ctx, *args, text=None, **kwargs):
             if text:
@@ -192,11 +191,11 @@ def advanced_args_method(bold_name=False):
 
             good_args, kwargs = _get_advanced_args(cls, ctx, *args, bold_name=bold_name, **kwargs)
 
-            output = await fun(cls, ctx, *good_args, **kwargs)
+            output = await coro(cls, ctx, *good_args, **kwargs)
             return output
 
-        f.__name__ = fun.__name__
-        f.__doc__ = fun.__doc__
+        f.__name__ = coro.__name__
+        f.__doc__ = coro.__doc__
         return f
 
     return wrapper
@@ -236,20 +235,20 @@ def advanced_perm_check_function(bot, *checking_funcs, bold_name=False):
         message object returned by calling given function with given params
     """
 
-    def decorator(fun):
+    def decorator(coro):
         @advanced_args_function(bot, bold_name)
         async def f(*args, sudo=False, force=False, **kwargs):
             valid, force = _check_advanced_perm(*args,
                                                 sudo=sudo, force=force, **kwargs,
                                                 checking_funcs=[*checking_funcs])
             if valid:
-                output = await fun(*args, force=force, **kwargs)
+                output = await coro(*args, force=force, **kwargs)
                 return output
             else:
                 raise CommandError("No permission")
 
-        f.__name__ = fun.__name__
-        f.__doc__ = fun.__doc__
+        f.__name__ = coro.__name__
+        f.__doc__ = coro.__doc__
         return f
 
     return decorator
@@ -265,37 +264,37 @@ def advanced_perm_check_method(*checking_funcs, bold_name=False):
         message object returned by calling given function with given params
     """
 
-    def decorator(fun):
+    def decorator(coro):
         @advanced_args_method(bold_name)
         async def f(cls, *args, sudo=False, force=False, **kwargs):
             valid, force = _check_advanced_perm(*args,
                                                 sudo=sudo, force=force, **kwargs,
                                                 checking_funcs=[*checking_funcs])
             if valid:
-                output = await fun(cls, *args, force=force, **kwargs)
+                output = await coro(cls, *args, force=force, **kwargs)
                 return output
             else:
                 raise CommandError("No permission")
 
-        f.__name__ = fun.__name__
-        f.__doc__ = fun.__doc__
+        f.__name__ = coro.__name__
+        f.__doc__ = coro.__doc__
         return f
 
     return decorator
 
 
-def delete_call(fun):
+def delete_call(coro):
     """
     Decorator that removes message which triggered command.
     Args:
-        fun:
+        coro:
 
     Returns:
         message object returned by calling given function with given params
     """
 
     async def decorator(ctx, *args, **kwargs):
-        result = await fun(ctx, *args, **kwargs)
+        result = await coro(ctx, *args, **kwargs)
 
         try:
             await ctx.message.delete()
@@ -304,16 +303,16 @@ def delete_call(fun):
 
         return result
 
-    decorator.__name__ = fun.__name__
-    decorator.__doc__ = fun.__doc__
+    decorator.__name__ = coro.__name__
+    decorator.__doc__ = coro.__doc__
     return decorator
 
 
-def approve_fun(fun):
+def approve_fun(coro):
     """
     Decorator that adds reaction if success, else x.
     Args:
-        fun:
+        coro:
 
     Returns:
         message object returned by calling given function with given params
@@ -321,56 +320,63 @@ def approve_fun(fun):
 
     async def decorator(ctx, *args, **kwargs):
         try:
-            result = await fun(ctx, *args, **kwargs)
+            result = await coro(ctx, *args, **kwargs)
             await ctx.message.add_reaction('✅')
             return result
         except Exception as pe:
             await ctx.message.add_reaction('❌')
 
-    decorator.__name__ = fun.__name__
-    decorator.__doc__ = fun.__doc__
+    decorator.__name__ = coro.__name__
+    decorator.__doc__ = coro.__doc__
     return decorator
 
 
-def trash_after(bot, timeout=600):
+def trash_after(bot, timeout=600, delete_with_TO=False):
     """
     Decorator, that remove message after given time.
     Decorated function must return message!
     Args:
+        bot: bot instance
         timeout: Integer, default 600
+        delete_with_TO: Delete if timeout occured.
 
     Returns:
         message object returned by calling given function with given params
     """
 
-    def function(fun):
+    def function(coro):
         async def decorator(ctx, *args, **kwargs):
 
-            message = await fun(ctx, *args, **kwargs)
+            message = await coro(ctx, *args, **kwargs)
 
-            await message.add_reaction("❎")
+            await message.add_reaction(EMOJIS['green_x'])
             await asyncio.sleep(0.1)
 
             def check_reaction(reaction, user):
                 return user == ctx.message.author \
-                       and str(reaction.emoji) == '❎' \
+                       and str(reaction.emoji) == EMOJIS['green_x'] \
                        and reaction.message.id == message.id
 
             try:
-                if timeout < 1:
-                    tm = 30
+                if timeout < 10:
+                    tm = 10
                 else:
                     tm = timeout
                 reaction, user = await bot.wait_for('reaction_add',
                                                     check=check_reaction,
                                                     timeout=tm)
             except asyncio.TimeoutError:
-                pass
+                try:
+                    await message.clear_reaction(EMOJIS['green_x'])
+                except Exception:
+                    pass
+                if not delete_with_TO:
+                    return None
 
             await message.delete()
 
-        decorator.__name__ = fun.__name__
-        decorator.__doc__ = fun.__doc__
+        decorator.__name__ = coro.__name__
+        decorator.__doc__ = coro.__doc__
         return decorator
 
     return function
@@ -384,7 +390,7 @@ def _log_call(ctx, *args, **kwargs):
     logger.info(f"Invo: '{ctx.message.content}', Args:{args}, Kwargs:{kwargs}. {ctx.message.author}, {where}")
 
 
-def log_call_function(fun):
+def log_call_function(coro):
     """
     Decorator, logs function.
     Args:
@@ -394,15 +400,15 @@ def log_call_function(fun):
 
     async def decorator(ctx, *args, **kwargs):
         _log_call(ctx, *args, **kwargs)
-        message = await fun(ctx, *args, **kwargs)
+        message = await coro(ctx, *args, **kwargs)
         return message
 
-    decorator.__name__ = fun.__name__
-    decorator.__doc__ = fun.__doc__
+    decorator.__name__ = coro.__name__
+    decorator.__doc__ = coro.__doc__
     return decorator
 
 
-def log_call_method(fun):
+def log_call_method(coro):
     """
     Decorator, logs cog method.
     Args:
@@ -412,9 +418,9 @@ def log_call_method(fun):
 
     async def decorator(cls, ctx, *args, **kwargs):
         _log_call(ctx, *args, **kwargs)
-        message = await fun(cls, ctx, *args, **kwargs)
+        message = await coro(cls, ctx, *args, **kwargs)
         return message
 
-    decorator.__name__ = fun.__name__
-    decorator.__doc__ = fun.__doc__
+    decorator.__name__ = coro.__name__
+    decorator.__doc__ = coro.__doc__
     return decorator

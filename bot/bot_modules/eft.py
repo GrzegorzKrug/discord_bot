@@ -144,7 +144,7 @@ class CogTest(Cog):
             calibers = pd.read_csv("ammo.csv", dtype=str)["Caliber"].unique()
             await ctx.send(f"Tell me **caliber ** or ammo **name**, example !ammo 5.56. \n"
                            f"Available calibers:\n"
-                           f"{', '.join(f'*{ob}*' for ob in calibers)}")
+                           f"{', '.join(f'`{ob}`' for ob in calibers)}")
             await ctx.message.delete()
             return None
 
@@ -165,10 +165,13 @@ class CogTest(Cog):
             elif "all" in query:
                 pass
             else:
-                ammo_df = ammo_df[
-                    ammo_df["Caliber"].str.contains(query.lower()) |
-                    ammo_df["Name"].str.contains(query.title())
-                    ]
+                if query == "45" or query == ".45":
+                    ammo_df = ammo_df[ammo_df["Caliber"] == ".45"]
+                else:
+                    ammo_df = ammo_df[
+                        ammo_df["Caliber"].str.contains(query.lower()) |
+                        ammo_df["Name"].str.contains(query.title())
+                        ]
 
             embed = self.create_embed_ammo(ammo_df, priority=priority)
         if not embed:

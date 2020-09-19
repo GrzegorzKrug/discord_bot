@@ -6,29 +6,57 @@ class Help:
     def __init__(self):
         self.temp_help_arr = []
         self.help_dict = {}
+        self.alias_dict = {}
 
     def create_help_dict(self):
-        help_dict = {key: {"simple": simple, "example": example, "full": full_doc}
-                     for command_ob in self.temp_help_arr for key, simple, example, full_doc in command_ob}
+        """
+        self.temp_help_arr is list of tuples
+        Returns:
+
+        """
+        help_dict = {}
+        alias_dict = {}
+        for object in self.temp_help_arr:
+            for key, simple, example, full, aliases in object:
+                help_dict.update({key: {"simple": simple, "example": example, "full": full, "aliases": aliases}})
+
+                if aliases:
+                    for alias in aliases:
+                        alias_dict.update({alias: {"simple": simple, "example": example, "full": full}})
+
+        # help_dict =
+
         self.help_dict = help_dict
+        self.alias_dict = alias_dict
         self.temp_help_arr = []
 
-    def help_decorator(self, simple, example=None):
+    def help_decorator(self, simple, example=None, help_name=None, aliases=None):
         _help = []
 
-        def wrapper(function):
+        def wrapper(coro):
             async def f(*args, **kwargs):
-                value = await function(*args, **kwargs)
+                value = await coro(*args, **kwargs)
                 return value
 
             if example is None:
-                _example = f"!{function.__name__}"
+                _example = f"!{coro.__name__}"
             else:
                 _example = example
-            full_doc = function.__doc__
-            _help.append((function.__name__, simple, _example, full_doc))
-            f.__name__ = function.__name__
-            f.__doc__ = function.__doc__
+
+            if aliases:
+                _simple = simple + "\n" + f"Aliases:" + ",".join(aliases)
+            else:
+                _simple = simple
+
+            full_doc = coro.__doc__
+            key = help_name if help_name else coro.__name__
+
+            _help.append((key, _simple, _example, full_doc, aliases))
+            # if aliases:
+            #     for alias in aliases:
+            #         _help.append((alias, _simple, f"!{alias}", full_doc, aliases))
+            f.__name__ = coro.__name__
+            f.__doc__ = coro.__doc__
 
             return f
 
@@ -48,7 +76,8 @@ EMOJIS = {
         '7': '7️⃣',
         '8': '8️⃣',
         '9': '9️⃣',
-        '10': '🔟'
+        '10': '🔟',
+        'green_x': "❎"
 }
 RUDE = ['Why you bother me {0} ?!', 'Stop it {0}!', 'No, I do not like that {0}.', "Go away {0}."]
 GLOBAL_SERVERS = {755063230300160030, 755065402777796663, 755083175491010590}
@@ -64,5 +93,6 @@ async def send_disapprove(ctx):
     await ctx.message.add_reaction('❌')
 
 
-logger = define_logger("Bot", path='..', file_lvl="INFO", stream_lvl="DEBUG", extra_debug="Debug")
-messenger = define_logger("Messenger", path='..', file_lvl="INFO", combined=False, date_in_file=True)
+logger = define_logger("Bot", path='..', file_lvl="INFO", stream_lvl="DEBUG", extra_debug="Debug.log")
+messenger = define_logger("Messenger.log", path='..', file_lvl="INFO", combined=False, date_in_file=True)
+feedback = define_logger("Feedback", path='..', file_lvl="INFO", combined=False, date_in_file=False)
