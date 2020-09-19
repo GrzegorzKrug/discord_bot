@@ -20,5 +20,6 @@ services:
     image: yasiu_bot:latest
     volumes:
       - ./bot/:/app
+      - ./logs/:/logs
     command: bash -c "python start_bot.py"
     restart: always

@@ -13,4 +13,4 @@ RUN apt-get install 'ffmpeg'\
 
 RUN pip install -r /app/requirements.txt
 USER tester
-WORKDIR /app
+WORKDIR /app/bot

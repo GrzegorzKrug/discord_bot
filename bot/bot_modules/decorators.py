@@ -4,6 +4,7 @@ import re
 
 from .permissions import CommandWithoutPermissions
 from .definitions import send_disapprove, logger, EMOJIS
+from .definitions import YOUSHISU_ID
 
 from discord.ext.commands import CommandError
 from discord import HTTPException
@@ -106,13 +107,13 @@ def _get_advanced_args(bot, ctx, *args, bold_name=False, **kwargs):
     text_args = []
 
     for arg in args:
-        if arg.startswith("-f"):
+        if arg.startswith("-f") or arg == 'force':
             "force, enforce parameters"
             kwargs['force'] = True
-        elif arg.startswith("-d"):
+        elif arg.startswith("-d") or arg == 'dry':
             "dry run"
             kwargs['dry'] = True
-        elif arg.startswith("-s") or arg.startswith("-a"):
+        elif arg.startswith("-s") or arg.startswith("-a") or arg == 'sudo':
             "sudo or admin"
             kwargs['sudo'] = True
         elif arg.startswith("-"):
@@ -202,8 +203,10 @@ def advanced_args_method(bold_name=False):
 
 
 def check_sudo_permission(ctx):
-    logger.critical(f"NotImplemented, sudo is not checking permission yet")
-    return False
+    if ctx.message.author.id == YOUSHISU_ID:
+        return True
+    else:
+        return False
 
 
 def check_force_permission(ctx):
@@ -211,36 +214,58 @@ def check_force_permission(ctx):
     return False
 
 
-def _check_advanced_perm(ctx, *args, checking_funcs=None, sudo=False, force=False, **kwargs):
-    if len(checking_funcs) <= 0:
+def _check_advanced_perm(ctx, *args, rule_sets=None, restrictions=None, sudo=False, force=False, **kwargs):
+    if not rule_sets and not restrictions:
         raise CommandWithoutPermissions("Not checking any permission")
 
-    if sudo and check_sudo_permission(ctx) or all(
-            chk_f(ctx, *args, **kwargs) for chk_f in checking_funcs):
-        if force:
-            force = check_force_permission(ctx)
+    if force:
+        force = check_force_permission(ctx)
 
+    if restrictions:
+        if type(restrictions) is not list and type(restrictions) is not tuple:
+            restrictions = [restrictions]
+
+        for rule in restrictions:
+            valid, error = rule(ctx, *args, **kwargs)
+            if not valid:
+                raise error
+
+    if sudo and check_sudo_permission(ctx):
         return True, force
+
     else:
-        raise CommandError("No permission")
+        rule_sets = [rules if type(rules) is list or type(rules) is set else [rules]
+                     for rules in rule_sets]
+        all_errors = []
+
+        for rules in rule_sets:
+            valids, errors = zip(*[chk_f(ctx, *args, **kwargs) for chk_f in rules])
+            if all(valids):
+                return True, force
+            else:
+                all_errors += errors
+
+        if len(all_errors) > 0:
+            return False, False
+        else:
+            return True, force
 
 
-def advanced_perm_check_function(bot, *checking_funcs, bold_name=False):
+def advanced_perm_check_function(*rules_sets, restrictions=None):
     """
     Check channels and permissions, use -s -sudo or -a -admin to run it.
     Args:
-        *checking_funcs:
-        bold_name: if output text should use bold font
+        *rules_sets:
+        restrictions: Restrictions must be always met
     Returns:
         message object returned by calling given function with given params
     """
 
     def decorator(coro):
-        @advanced_args_function(bot, bold_name)
         async def f(*args, sudo=False, force=False, **kwargs):
             valid, force = _check_advanced_perm(*args,
                                                 sudo=sudo, force=force, **kwargs,
-                                                checking_funcs=[*checking_funcs])
+                                                rule_sets=[*rules_sets], restrictions=restrictions)
             if valid:
                 output = await coro(*args, force=force, **kwargs)
                 return output
@@ -254,26 +279,26 @@ def advanced_perm_check_function(bot, *checking_funcs, bold_name=False):
     return decorator
 
 
-def advanced_perm_check_method(*checking_funcs, bold_name=False):
+def advanced_perm_check_method(*rules_sets, restrictions=None):
     """
     Check channels and permissions, use -s -sudo or -a -admin to run it.
     Args:
-        *checking_funcs:
-        bold_name: if output text should use bold font
+        *rules_sets:
+        restrictions: Restrictions must be always met
     Returns:
         message object returned by calling given function with given params
     """
 
     def decorator(coro):
-        @advanced_args_method(bold_name)
         async def f(cls, *args, sudo=False, force=False, **kwargs):
             valid, force = _check_advanced_perm(*args,
                                                 sudo=sudo, force=force, **kwargs,
-                                                checking_funcs=[*checking_funcs])
+                                                rule_sets=[*rules_sets], restrictions=restrictions)
             if valid:
                 output = await coro(cls, *args, force=force, **kwargs)
                 return output
             else:
+                # raise errors[0]
                 raise CommandError("No permission")
 
         f.__name__ = coro.__name__

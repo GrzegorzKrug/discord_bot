@@ -15,30 +15,10 @@ class CogTest(Cog):
     def __init__(self):
         self.bot = bot
 
-    @command()
-    @advanced_perm_check_method()
-    @my_help.help_decorator("cog1 test")
-    async def cog1(self, ctx, *args, text=None, **kwargs):
-        print("Cog1")
-        await ctx.send(f"txt: {text}")
-
-    @command()
+    @command(aliases=['eftammoget'])
     @advanced_args_method()
     @log_call_method
-    async def eft(self, ctx, *keyword, dry=False, **kwargs):
-        search_url = r'https://escapefromtarkov.gamepedia.com/index.php?search='
-        if len(keyword) < 1:
-            await ctx.send("What? 🤔")
-            return None
-        search_phrase = '+'.join(keyword)
-        url = search_url + search_phrase
-        logger.debug(f"Eft url: {url}")
-        # results = requests.get(url)
-        # print(results.text)
-
-    @command(aliases=['eftammoget'])
-    @advanced_perm_check_method(is_bot_owner)
-    @log_call_method
+    @advanced_perm_check_method(restrictions=is_bot_owner)
     @log_duration_any
     async def eftgetammo(self, ctx, *args, **kwargs):
         """
@@ -87,15 +67,15 @@ class CogTest(Cog):
             ammo_df = ammo_df.append(serie, ignore_index=True)
 
             if r_id < granades_rows_ammount:
-                granade_list = self.process_table_row(row_elements[granades_at_column:])
-                serie = pd.Series(granade_list, index=header_granades)
+                grenade_list = self.process_table_row(row_elements[granades_at_column:])
+                serie = pd.Series(grenade_list, index=header_granades)
                 underbarrel_df = underbarrel_df.append(serie, ignore_index=True)
 
         ammo_df = ammo_df.loc[:, ~(ammo_df.columns == "")]
         ammo_df.to_csv("ammo.csv")
 
         underbarrel_df = underbarrel_df.loc[:, ~(underbarrel_df.columns == "")]
-        underbarrel_df.to_csv("granade_ammo.csv")
+        underbarrel_df.to_csv("grenade_ammo.csv")
 
         logger.info(f"Saved tarkov ammo.")
         await send_approve(ctx)
@@ -123,12 +103,12 @@ class CogTest(Cog):
     @command()
     @advanced_args_method()
     @log_call_method
-    @my_help.help_decorator("Show ammo stats from EFT.", "!ammo caliber|name|granades|tracer (sorting)")
+    @my_help.help_decorator("Show ammo stats from EFT.", "!ammo <caliber>|<name>|grenades|tracer (<sorting>)")
     @check_query_method
     async def ammo(self, ctx, query=None, priority=None, *args, **kwargs):
         """
-        Available queries: <caliber>, <name>, granades, tracer
-        Available sortings: damage, penetration, accuracy, recoil.
+        Available queries: <caliber>, <name>, grenades, tracer
+        Available sorting: damage, penetration, accuracy, recoil.
 
         Args:
             ctx:
@@ -153,8 +133,12 @@ class CogTest(Cog):
         if priority:
             priority = priority.lower()
 
-        if "gran" in query or "bar" in query or 'unde' in query:
-            granade_df = pd.read_csv("granade_ammo.csv", dtype=str)
+        if "gran" in query:
+            await ctx.message.author.send("Correct spelling is `Gr`**`E`**`nade`")
+            query = "gren"
+
+        if "gren" in query or "bar" in query or 'unde' in query:
+            granade_df = pd.read_csv("grenade_ammo.csv", dtype=str)
             embed = self.create_embed_granade(granade_df, priority="Damage")
 
         else:
@@ -237,7 +221,7 @@ class CogTest(Cog):
 
         data = data.sort_values(['Damage'], ascending=False)
 
-        embed = Embed(title=f'Under-barrels', color=col,
+        embed = Embed(title=f'Under-barrel grenades', color=col,
                       description=f"[Ammo chart link]({spread_sheet_url})")
         embed.set_author(name="Ammo table")
 

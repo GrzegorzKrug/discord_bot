@@ -94,5 +94,5 @@ async def send_disapprove(ctx):
 
 
 logger = define_logger("Bot", path='..', file_lvl="INFO", stream_lvl="DEBUG", extra_debug="Debug.log")
-messenger = define_logger("Messenger.log", path='..', file_lvl="INFO", combined=False, date_in_file=True)
+messenger = define_logger("Messenger", path='..', file_lvl="INFO", combined=False, date_in_file=True)
 feedback = define_logger("Feedback", path='..', file_lvl="INFO", combined=False, date_in_file=False)

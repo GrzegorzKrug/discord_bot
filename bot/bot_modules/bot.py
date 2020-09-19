@@ -18,10 +18,13 @@ from .permissions import *
 from .definitions import *
 
 from .eft import CogTest
+from .test import *
 
 
 @bot.command(aliases=["invite_bot", "invite_me", 'join'])
-@advanced_perm_check_function(bot, is_not_priv)
+@advanced_args_function(bot)
+@log_call_function
+@advanced_perm_check_function(is_not_priv)
 @log_call_function
 async def invite(ctx, *args, **kwargs):
     embed = Embed(title=f"Invite me!", url=BOT_URL)
@@ -316,7 +319,7 @@ async def on_message(message):
     if not message.guild:
         recipient = message.channel.recipient.name
         messenger.info(
-                f"(priv) {message.author}: {message.content} to {recipient if message.author == bot.user else 'Me'}")
+                f"(priv) {message.author} to {recipient if message.author == bot.user else 'Me'}: {message.content}")
 
     if message.author.bot:
         return None
@@ -403,14 +406,14 @@ async def on_command_error(ctx, command_error):
     elif text_error.startswith("Command raised an exception: CommandWithoutPermissions"):
         logger.error(f"Command is free to all users: '{text}', server: '{server}'")
         await ctx.message.add_reaction("⛔")
-        await ctx.channel.send(f"Command must be validated, sorry. '!{invoked}'")
+        await ctx.channel.send(f"Command is not checking any permissions, sorry. '!{invoked}'")
 
     elif "required positional argument" in text_error:
         await ctx.channel.send(f"Some arguments are missing: '{command_error.original}'")
 
     else:
         tb_text = traceback.format_exception(type(command_error), command_error, command_error.__traceback__)
-        tb_text = ''.join([line for line in tb_text if f'bot{os.path.sep}' in line])
+        tb_text = ''.join([line for line in tb_text if f'bot{os.path.sep}' in line or f'app{os.path.sep}' in line])
         logger.error(
                 f"No reaction for this error type:\n"
                 f"Command: '{ctx.message.content}', server: '{server}', \n"
@@ -441,7 +444,9 @@ async def on_member_remove(member):
 
 
 @bot.command()
-@advanced_perm_check_function(bot, is_not_priv)
+@advanced_args_function(bot)
+@log_call_function
+@advanced_perm_check_function(is_not_priv)
 @log_call_function
 @my_help.help_decorator("You can check how many users is on server")
 async def status(ctx, *args, **kwargs):
@@ -463,9 +468,11 @@ def get_list_non_offline_members(members):
 
 
 @bot.command(aliases=['purge'])
-@advanced_perm_check_function(bot, is_server_owner, is_not_priv)
+@advanced_args_function(bot)
 @log_call_function
-@my_help.help_decorator("Removes X messages", "!purge amount")
+@advanced_perm_check_function([is_server_owner, is_not_priv])
+@log_call_function
+@my_help.help_decorator("Removes <X> messages", "!purge <amount>")
 async def purge_all(ctx, amount, *args, **kwargs):
     """
     Removes messages in given channel
@@ -491,10 +498,12 @@ async def purge_all(ctx, amount, *args, **kwargs):
 
 
 @bot.command()
-@advanced_perm_check_function(bot, is_server_owner, is_not_priv)
+@advanced_args_function(bot)
+@log_call_function
+@advanced_perm_check_function(is_server_owner, is_not_priv)
 @delete_call
 @log_call_function
-@my_help.help_decorator("Removes user X messages", "!purge_id user_id amount")
+@my_help.help_decorator("Removes user <X> messages", "!purge_id <user_id> <amount>")
 async def purge_id(ctx, authorid, amount, *args, **kwargs):
     """
     !purge id amount, removes all messages sent by author,
@@ -522,10 +531,11 @@ async def purge_id(ctx, authorid, amount, *args, **kwargs):
 
 
 @bot.command()
-@advanced_perm_check_function(bot, is_server_owner, is_not_priv)
-@delete_call
+@advanced_args_function(bot)
 @log_call_function
-@my_help.help_decorator("Removes only bot messages", "!purge_bot amount")
+@advanced_perm_check_function(is_server_owner, is_not_priv)
+@delete_call
+@my_help.help_decorator("Removes only bot messages", "!purge_bot <amount>")
 async def purge_bot(ctx, amount, *args, **kwargs):
     channel = ctx.channel
     num = int(amount)
@@ -540,9 +550,10 @@ async def purge_bot(ctx, amount, *args, **kwargs):
 
 
 @bot.command()
-@advanced_perm_check_function(bot, is_not_priv)
+@advanced_args_function(bot)
 @log_call_function
-@my_help.help_decorator("Interactive mini game. No borders on sides. Get to end.", "!slipper (height)")
+@advanced_perm_check_function(is_not_priv)
+@my_help.help_decorator("Interactive mini game. No borders on sides. Get to end.", "!slipper (<height>)")
 async def slipper(ctx, dimy=10, dimx=6, *args, **kwargs):
     """
 
@@ -692,8 +703,9 @@ def board_to_monotext(board, el_size=2, distance_between=0,
 
 
 @bot.command(aliases=['global'])
-@advanced_perm_check_function(bot, is_server_owner, is_not_priv)
+@advanced_args_function(bot)
 @log_call_function
+@advanced_perm_check_function(is_server_owner, is_not_priv)
 async def _global(ctx, key=None, *args, **kwargs):
     if type(key) is str and key.lower() == "add":
         GLOBAL_SERVERS.add(ctx.channel.id)
@@ -707,8 +719,9 @@ async def _global(ctx, key=None, *args, **kwargs):
 
 
 @bot.command()
-@advanced_perm_check_function(bot, this_is_disabled)
+@advanced_args_function(bot)
 @log_call_function
+@advanced_perm_check_function(is_server_owner, restrictions=is_not_priv)
 async def spam(ctx, num=1, *args, **kwargs):
     num = int(num)
     if num > 100:
@@ -742,8 +755,9 @@ async def react(ctx, *args, **kwargs):
 
 
 @bot.command()
-@advanced_perm_check_function(bot, is_bot_owner)
+@advanced_args_function(bot)
 @log_call_function
+@advanced_perm_check_function(is_bot_owner)
 @log_duration_any
 async def save(ctx, *args, **kwargs):
     """
@@ -785,7 +799,7 @@ async def hello(ctx, *args):
 @bot.command(aliases=['h', 'help'])
 @advanced_args_function(bot)
 @log_call_function
-@my_help.help_decorator("Help function", "!help (command)", help_name="help")
+@my_help.help_decorator("Help function", "!help (<cmd>) (perm) (full)", help_name="help")
 async def _help(ctx, cmd_key=None, *args, full=False, **kwargs):
     embed = Embed(colour=Colour.from_rgb(60, 255, 150))
     embed.set_author(name=f"{bot.user.name} help menu")
@@ -813,7 +827,8 @@ async def _help(ctx, cmd_key=None, *args, full=False, **kwargs):
             simple_text = value['simple']
             example = value['example']
             aliases = value['aliases']
-            inline = False if aliases else True
+            inline = False if (aliases or len(example) > 21) \
+                else True
             embed.add_field(name=example, value=f"{simple_text}", inline=inline)
 
     embed.set_thumbnail(url=bot.user.avatar_url)
@@ -822,35 +837,8 @@ async def _help(ctx, cmd_key=None, *args, full=False, **kwargs):
 
 @bot.command()
 @delete_call
-@advanced_perm_check_function(bot, is_not_priv, this_is_disabled)
 @log_call_function
-async def countdown(ctx, num=10, dry=False, force=False, **kwargs):
-    try:
-        num = int(num)
-        if num > 10 and not force:
-            num = 10
-        if num < 1:
-            num = 1
-
-    except ValueError as ve:
-        logger.error(f"Countdown incorrect arg: {num}")
-        num = 5
-
-    channel = ctx.channel
-    if not dry:
-        msg_countdown = await channel.send(f"Time left: {num}")
-        for x in range(num - 1, -1, -1):
-            text = f"Time left: {x}"
-            await msg_countdown.edit(content=text)
-        await msg_countdown.delete()
-    else:
-        await channel.send(f"Countdown of {num}, will delete this dryrun message....", delete_after=10)
-
-
-@bot.command()
-@delete_call
-@log_call_function
-@my_help.help_decorator("Sweeper game, don't blow it up", "!sweeper (size) (bombs)")
+@my_help.help_decorator("Sweeper game, don't blow it up", "!sweeper (<size>) (<bombs>)")
 async def sweeper(ctx, *args):
     """
     Generates sweeper game, !sweeper (size) (bombs)
@@ -913,45 +901,12 @@ async def sweeper(ctx, *args):
     return message
 
 
-@bot.command()
-@advanced_perm_check_function(bot, this_is_disabled)
-@log_call_function
-async def ask(ctx, *args, **kwargs):
-    users = []
-    text = []
-    for ar in args:
-        try:
-            user_id = int(ar)
-            user = bot.get_user(user_id)
-            if user:
-                users.append(user)
-            else:
-                text.append(ar)
-
-        except ValueError as err:
-            text.append(ar)
-        except TypeError as err:
-            logger.error(f"Type error in ask, {err}")
-            text.append(ar)
-    users = set(users)
-    if len(ctx.message.mentions) > 0:
-        users.add(*ctx.message.mentions)
-
-    text = ' '.join(text)
-
-    for us in users:
-        try:
-            await us.send(text)
-        except Exception as err:
-            logger.error(err)
-            pass
-
-
 @bot.command(aliases=['czy', 'is', 'what', 'how'])
-@advanced_perm_check_function(bot, is_not_priv)
+@advanced_args_function(bot)
 @log_call_function
+@advanced_perm_check_function(is_not_priv)
 @my_help.help_decorator("Poll with maximum 10 answers. Minimum 2 answers, maximum 10. timeout is optional",
-                        "!poll question? ans1, ...")
+                        "!poll <question>? <ans1>, ..., <ans10> (timeout=<sec>)")
 async def poll(ctx, *args, force=False, dry=False, timeout=180, **kwargs):
     """
     Multi choice poll with maximum 10 answers
@@ -1072,9 +1027,10 @@ async def poll(ctx, *args, force=False, dry=False, timeout=180, **kwargs):
 
 
 @bot.command()
-@advanced_perm_check_function(bot, is_not_priv)
+@advanced_args_function(bot)
 @log_call_function
-@my_help.help_decorator("Shoot somebody", "!shoot @user num")
+@advanced_perm_check_function(is_not_priv)
+@my_help.help_decorator("Shoot somebody", "!shoot <@user> (<num>)")
 async def shoot(ctx, *args, force=False, dry=False, **kwargs):
     """
     Send message that mention somebody up to 10 times, and show gun with faces.
@@ -1137,48 +1093,11 @@ def save_image(image, path):
     cv2.imwrite(path, image)
 
 
-@bot.command()
-@trash_after(bot)
-async def embed_table(ctx, *args):
-    pic_url = r'https://external-content.duckduckgo.com/iu/?u=http%3A%2F%2Fpixel.nymag.com%2Fimgs%2Fdaily%2Fintelligencer%2F2014%2F12%2F08%2F08-grumpy-cat.o.jpg%2Fa_190x190.w1200.h630.jpg&f=1&nofb=1'
-    description = "Comparison"
-
-    author = bot.get_user(147795752943353856)
-
-    col = Colour.from_rgb(30, 129, 220)
-    bullets = {'5.45': {'speed': 10, 'damage': 20}, '7.62': {'speed': 15, 'damage': 40},
-               '9x19': {'speed': 8, 'damage': 15}}
-
-    title = []
-    damage = []
-    speed = []
-    joiner = " | "
-    for caliber, bullet in bullets.items():
-        title.append(f"{caliber:<5}")
-        damage.append(f"{bullet['damage']:<5}")
-        speed.append(f"{bullet['speed']:<5}")
-
-    title = joiner.join(title)
-    damage = joiner.join(damage)
-    speed = joiner.join(speed)
-
-    embed = Embed(title=f"`{title}`", color=col, description=f"[{description}]({pic_url})", url=pic_url)
-    embed.set_author(name="Ammo table")
-
-    embed.add_field(name="Damage", value=f"`{damage}`", inline=False)
-    embed.add_field(name="Speed", value=f"`{speed}`", inline=False)
-    embed.set_thumbnail(url=author.avatar_url)
-
-    embed.set_footer(text='your text', icon_url=pic_url)
-    message = await ctx.send(embed=embed, content="content")
-    return message
-
-
 @bot.command(aliases=['feedback', 'report', 'problem', 'suggestion', 'suggest', 'idea'])
 @advanced_args_function(bot)
 @log_call_function
 @my_help.help_decorator("Send feedback to author, problems or new ideas.",
-                        "!feedback text",
+                        "!feedback <text>",
                         aliases=['feedback', 'report', 'problem', 'suggestion', 'suggest', 'idea'],
                         help_name="feedback")
 async def _user_feedback(ctx, *args, text, **kwargs):
@@ -1210,30 +1129,6 @@ async def _user_feedback(ctx, *args, text, **kwargs):
         feedback.warning(f"{ctx.author}, {ctx.guild}, has a suggestion: {text}")
     else:
         feedback.warning(f"{ctx.author}, {ctx.guild}, send message: {text}")
-
-
-@bot.command()
-async def test_embed(ctx, *args, **kwargs):
-    pic_url = r'https://external-content.duckduckgo.com/iu/?u=http%3A%2F%2Fpixel.nymag.com%2Fimgs%2Fdaily%2Fintelligencer%2F2014%2F12%2F08%2F08-grumpy-cat.o.jpg%2Fa_190x190.w1200.h630.jpg&f=1&nofb=1'
-    description = "This is some big, ass text, for the title, description, " \
-                  + "including **information** about picture on the right side"
-
-    author = bot.get_user(147795752943353856)
-
-    col = Colour.from_rgb(30, 129, 220)
-    embed = Embed(title='He**l**lo', color=col, description=f"[**is this bold?**{description}]({pic_url})", url=pic_url)
-
-    embed.add_field(name="f1", value="**text1**", inline=True)
-    embed.add_field(name="f2", value="tex2", inline=True)
-    embed.add_field(name="f3", value="tex3", inline=False)
-    embed.add_field(name="f3", value="tex3", inline=False)
-    embed.add_field(name="f3", value="tex3", inline=False)
-    embed.add_field(name="f3", value="tex3", inline=False)
-    embed.add_field(name="f3", value="tex3", inline=True)
-    embed.set_thumbnail(url=author.avatar_url)
-    embed.set_author(name="You**sh**isu")
-    embed.set_footer(text='your **text**', icon_url=pic_url)
-    await ctx.send(embed=embed, content="content")
 
 
 os.makedirs("avatars", exist_ok=True)
