@@ -324,6 +324,12 @@ async def on_message(message):
     if message.author.bot:
         return None
 
+    logger.warning(f"Prefix in on_message is constant")
+    if bot.user in message.mentions and not message.content.startswith("!"):
+        ch = message.channel
+        text = random.choice(RUDE)
+        await ch.send(text.format(message.author.name))
+
     servers = GLOBAL_SERVERS.copy()
     if not message.content.startswith("!") and message.channel.id in servers:
         logger.warning(f"Fixed worldwide chat")
@@ -336,11 +342,6 @@ async def on_message(message):
         await _announcement(chids=servers, text=text, embed=embed)
         return None
 
-    logger.warning(f"Prefix in on_message is constant")
-    if bot.user in message.mentions and not message.content.startswith("!"):
-        ch = message.channel
-        text = random.choice(RUDE)
-        await ch.send(text.format(message.author.name))
     else:
         await bot.process_commands(message)
 
@@ -933,7 +934,7 @@ async def poll(ctx, *args, force=False, dry=False, timeout=2 * 60, **kwargs):
     if timeout > 60 * 60 and not force:
         timeout = 60 * 60
 
-    update_interval = 20 if 20 < timeout else timeout + 1
+    update_interval = 10 if 10 < timeout else timeout
 
     if len(arr_text) < 3:
         await ctx.send(f"Got less than 1 questions and 2 answers, use some delimiter ?;,")
@@ -994,16 +995,20 @@ async def poll(ctx, *args, force=False, dry=False, timeout=2 * 60, **kwargs):
         #     print(ki)
 
         poll = await ctx.channel.fetch_message(poll.id)
-        all_votes = 0
+        # all_votes = 0
+        all_users = []
         vote_emojis = [EMOJIS[str(num)] for num in range(1, 11)]
         for rc in poll.reactions:
             if rc.emoji not in vote_emojis:
                 continue
+            users = [user async for user in rc.users()]
+            all_users += users
             me = rc.me
             count = rc.count - 1 if me else 0
-            all_votes += count
+            # all_votes += count
             answer_dict[rc.emoji]['votes'] = count
 
+        all_users_count = len(set(all_users)) - 1
         embed = Embed(title=question, colour=poll_color)
         embed.set_author(name=ctx.author.name)
         embed.set_thumbnail(url=ctx.author.avatar_url)
@@ -1013,7 +1018,8 @@ async def poll(ctx, *args, force=False, dry=False, timeout=2 * 60, **kwargs):
                 emoji = EMOJIS[str(number)]
                 ans = answer_dict[emoji]['ans']
                 votes = answer_dict[emoji]['votes']
-                fraction = votes / all_votes * 100 if all_votes > 0 else 0
+                # fraction = votes / all_votes * 100 if all_votes > 0 else 0
+                fraction = votes / all_users_count * 100 if all_users_count > 0 else 0
                 embed.add_field(name=f"{emoji} -`{fraction:<3.1f} %`", value=ans, inline=False)
             except KeyError:
                 break
