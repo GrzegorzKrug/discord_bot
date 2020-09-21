@@ -17,8 +17,8 @@ from .decorators import *
 from .permissions import *
 from .definitions import *
 
-from .eft import CogTest
-from .test import *
+from .eft import EFTCog
+
 
 
 @bot.command(aliases=["invite_bot", "invite_me", 'join'])
@@ -1142,4 +1142,4 @@ async def _user_feedback(ctx, *args, text, **kwargs):
 
 os.makedirs("avatars", exist_ok=True)
 my_help.create_help_dict()
-bot.add_cog(CogTest())
+bot.add_cog(EFTCog())

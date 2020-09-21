@@ -11,7 +11,7 @@ from .decorators import *
 from .definitions import *
 
 
-class CogTest(Cog):
+class EFTCog(Cog):
     def __init__(self):
         self.bot = bot
 
