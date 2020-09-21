@@ -7,7 +7,7 @@ services:
     volumes:
       - ./postgres-data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_DB=postgres
+      - POSTGRES_DB=yasiu_bot
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=docker
     ports:
@@ -17,9 +17,11 @@ services:
     build:
       context: .
       dockerfile: dockerfile_bot
+    environment:
+      - TOKEN_FILE=yasiu_token.txt
     image: yasiu_bot:latest
     volumes:
-      - ./bot/:/app
-      - ./logs/:/logs
+      - ./bot/:/app/bot
+      - ./logs/:/app/logs
     command: bash -c "python start_bot.py"
     restart: always

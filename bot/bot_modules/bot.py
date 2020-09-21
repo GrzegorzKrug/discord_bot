@@ -24,8 +24,6 @@ from .test import *
 @bot.command(aliases=["invite_bot", "invite_me", 'join'])
 @advanced_args_function(bot)
 @log_call_function
-@advanced_perm_check_function(is_not_priv)
-@log_call_function
 async def invite(ctx, *args, **kwargs):
     embed = Embed(title=f"Invite me!", url=BOT_URL)
     embed.set_author(name=f"{bot.user.name}", icon_url=bot.user.avatar_url)
@@ -33,9 +31,11 @@ async def invite(ctx, *args, **kwargs):
     embed.set_thumbnail(url=bot.user.avatar_url)
 
     success = 0
-    if "priv" in args:
+    if "priv" in args or not ctx.message.guild:
         await ctx.author.send(f"Here is my invitation:", embed=embed)
-        await ctx.send(f"✅ Invite sent to {ctx.author.mention}.")
+
+        if ctx.message.guild:
+            await ctx.send(f"✅ Invite sent to {ctx.author.mention}.")
 
     elif ctx.message.mentions or args:
         await ctx.message.add_reaction("⏳")
@@ -934,7 +934,7 @@ async def poll(ctx, *args, force=False, dry=False, timeout=2 * 60, **kwargs):
     if timeout > 60 * 60 and not force:
         timeout = 60 * 60
 
-    update_interval = 10 if 10 < timeout else timeout
+    update_interval = 30 if 30 < timeout else timeout
 
     if len(arr_text) < 3:
         await ctx.send(f"Got less than 1 questions and 2 answers, use some delimiter ?;,")
@@ -964,7 +964,7 @@ async def poll(ctx, *args, force=False, dry=False, timeout=2 * 60, **kwargs):
 
     for num, ans in enumerate(answers, 1):
         emoji = EMOJIS[str(num)]
-        answer_dict[emoji] = {'ans': ans, 'votes': 0}
+        answer_dict[emoji] = {'ans': ans.title(), 'votes': 0}
         embed.add_field(name=emoji, value=ans, inline=False)
 
     poll = await ctx.send(embed=embed)

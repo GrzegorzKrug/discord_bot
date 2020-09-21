@@ -1,5 +1,6 @@
 from discord.ext.commands import Bot
 from .loggers import define_logger
+from discord import Colour
 
 
 class Help:
@@ -77,12 +78,17 @@ EMOJIS = {
         '8': '8️⃣',
         '9': '9️⃣',
         '10': '🔟',
-        'green_x': "❎"
+        'green_x': "❎",
+        'arrow_left': "⬅️",
+        'arrow_right': "➡️",
+        'arrow_back_left': "↩️",
 }
 RUDE = ['Why you bother me {0} ?!', 'Stop it {0}!', 'No, I do not like that {0}.', "Go away {0}."]
 GLOBAL_SERVERS = {755063230300160030, 755065402777796663, 755083175491010590}
 YOUSHISU_ID = 147795752943353856
 BOT_URL = r"https://discord.com/api/oauth2/authorize?client_id=750688123008319628&permissions=470019283&scope=bot"
+BOT_TEST_URL = r"https://discord.com/api/oauth2/authorize?client_id=757339370368794696&permissions=470019283&scope=bot"
+BOT_COLOR = Colour.from_rgb(30, 255, 0)
 
 
 async def send_approve(ctx):

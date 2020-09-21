@@ -12,5 +12,4 @@ RUN apt-get install 'ffmpeg'\
     'libxext6'  -y
 
 RUN pip install -r /app/requirements.txt
-USER tester
 WORKDIR /app/bot
