@@ -151,6 +151,53 @@ def _get_advanced_args(bot, ctx, *args, bold_name=False, **kwargs):
     return good_args, kwargs
 
 
+def _get_advanced_kwargs(bot, ctx, *args, bold_name=False, **kwargs):
+    args = list(args)
+    if not kwargs:
+        kwargs = {"force": False, "dry": False, "sudo": False}
+
+    good_args = list()
+    mention_pattern = re.compile(r"<@[!&]\d+>")
+    text_args = []
+
+    for arg in args:
+        if arg.startswith("-f") or arg == 'force':
+            "force, enforce parameters"
+            kwargs['force'] = True
+        elif arg.startswith("-d") or arg == 'dry':
+            "dry run"
+            kwargs['dry'] = True
+        elif arg.startswith("-s") or arg.startswith("-a") or arg == 'sudo':
+            "sudo or admin"
+            kwargs['sudo'] = True
+        elif arg.startswith("-"):
+            try:
+                _ = float(arg)
+                good_args.append(arg)
+            except ValueError:
+                "drop unknown parameters"
+                logger.warning(f"unknown argument: {arg}")
+        elif "=" in arg:
+            key, val = arg.split("=")
+            if key == "force" or key == "dry":
+                continue
+            if key and val:
+                kwargs.update({key: val})
+        elif mention_pattern.match(arg) or "@everyone" in arg or "@here" in arg:
+            name = string_mention_converter(bot, ctx.guild, arg, bold_name=bold_name)
+            text_args.append(name)
+
+        else:
+            good_args.append(arg)
+            text_args.append(arg)
+
+    good_args = tuple(good_args)
+    text = ' '.join(text_args)
+    kwargs['text'] = text
+
+    return good_args, kwargs
+
+
 def advanced_args_function(bot, bold_name=False):
     """
     Decorator that translates args to create flags and converts string into kwargs.
@@ -170,6 +217,35 @@ def advanced_args_function(bot, bold_name=False):
                 logger.error(f"Text is already in advanced args: {text}")
 
             good_args, kwargs = _get_advanced_args(bot, ctx, *args, bold_name=bold_name, **kwargs)
+            output = await coro(ctx, *good_args, **kwargs)
+            return output
+
+        f.__name__ = coro.__name__
+        f.__doc__ = coro.__doc__
+        return f
+
+    return wrapper
+
+
+def advanced_kwargs_only_function(bot, bold_name=False):
+    """
+    Decorator that translates args to create flags and converts string into kwargs.
+    Args:
+        bot: bot instance
+        bold_name:
+
+    Returns:
+        message object returned by calling given function with given params
+    """
+
+    def wrapper(coro):
+        logger.warning(f"Advanced args are not supporting non kwargs functions")
+
+        async def f(ctx, *args, text=None, **kwargs):
+            if text:
+                logger.error(f"Text is already in advanced args: {text}")
+
+            good_args, kwargs = _get_advanced_kwargs(bot, ctx, *args, bold_name=bold_name, **kwargs)
             output = await coro(ctx, *good_args, **kwargs)
             return output
 

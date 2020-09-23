@@ -388,7 +388,7 @@ async def _announcement(chids=None, text=None, embed=None):
             await channel.send(text, embed=embed)
             await asyncio.sleep(0.01)
         except Exception:
-            logger.error(f"Error in annoucment: {channel} {channel.guild}")
+            logger.error(f"Error in announcement: {channel}")
 
 
 @bot.event
@@ -1045,7 +1045,7 @@ async def sweeper(ctx, *args):
 
 
 @bot.command(aliases=['czy', 'is', 'what', 'how'])
-@advanced_args_function(bot)
+@advanced_kwargs_only_function(bot)
 @log_call_function
 @advanced_perm_check_function(is_not_priv)
 @my_help.help_decorator("Poll with maximum 10 answers. Minimum 2 answers, maximum 10. timeout is optional",
@@ -1068,6 +1068,7 @@ async def poll(ctx, *args, force=False, dry=False, timeout=2 * 60, **kwargs):
     """
 
     text = ' '.join(args)
+    logger.debug(text)
     arr_text = re.split(r"['.?;,]", text)
     arr_text = [el.lstrip().rstrip() for el in arr_text if len(el) > 0]
     poll_color = Colour.from_rgb(250, 165, 0)
