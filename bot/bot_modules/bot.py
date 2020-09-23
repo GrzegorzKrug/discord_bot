@@ -906,12 +906,12 @@ async def _help(ctx, cmd_key=None, *args, full=None, perm=None, **kwargs):
         else:
             pass
 
-        if was_menu:
-            menu = None
-        elif cmd_key:
+        if not was_menu and cmd_key:
             menu = my_help.help_dict.get(cmd_key, None)
             if menu:
                 menu = menu.get("menu")
+        else:
+            menu = None
 
         ret = get_help_embed(menu, page=page)
         content, embed, is_menu, menu_size, pages_count, this_page = ret
