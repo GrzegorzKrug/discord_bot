@@ -1068,7 +1068,7 @@ async def poll(ctx, *args, force=False, dry=False, timeout=2 * 60, **kwargs):
     """
 
     text = ' '.join(args)
-    arr_text = re.split(r"[ '.?;,]", text)
+    arr_text = re.split(r"['.?;,]", text)
     arr_text = [el.lstrip().rstrip() for el in arr_text if len(el) > 0]
     poll_color = Colour.from_rgb(250, 165, 0)
     finished_poll_color = Colour.from_rgb(30, 255, 0)
