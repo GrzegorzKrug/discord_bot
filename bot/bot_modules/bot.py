@@ -17,13 +17,14 @@ from .decorators import *
 from .permissions import *
 from .definitions import *
 
+from .roles import *
 from .eft import CogTest
-from .test import *
 
 
 @bot.command(aliases=["invite_bot", "invite_me", 'join'])
 @advanced_args_function(bot)
 @log_call_function
+@my_help.help_decorator("Generate bot invitation", "priv or mentions", menu='bot')
 async def invite(ctx, *args, **kwargs):
     embed = Embed(title=f"Invite me!", url=BOT_URL)
     embed.set_author(name=f"{bot.user.name}", icon_url=bot.user.avatar_url)
@@ -71,7 +72,7 @@ async def invite(ctx, *args, **kwargs):
 
 @bot.command(aliases=["bot"])
 @log_call_function
-@my_help.help_decorator("General bot information")
+@my_help.help_decorator("General bot information", menu="Bot")
 async def about(ctx):
     embed = Embed(title=f"Invite me!", url=BOT_URL)
     embed.set_author(name=f"{bot.user.name}", icon_url=bot.user.avatar_url)
@@ -90,7 +91,7 @@ async def about(ctx):
 
 @bot.command(aliases=['server', 'on', 'where'])
 @log_call_function
-@my_help.help_decorator("Servers that bot is connected to")
+@my_help.help_decorator("Servers that bot is connected to", menu="Bot")
 async def servers(ctx, *args, **kwargs):
     """
     Send embed message, showing which servers are using this bot.
@@ -219,8 +220,10 @@ def world_wide_format(message, msg_type=None):
 
 
 @bot.command()
+@advanced_args_function(bot)
 @log_call_function
-@my_help.help_decorator("Show global messages examples")
+@my_help.help_decorator("Show global messages examples", menu="chat")
+@advanced_perm_check_function(is_bot_owner, is_server_owner)
 async def global_examples(ctx, *args, **kwargs):
     """
 Examples used in global chat. Default 'field'
@@ -318,8 +321,8 @@ Returns:
 async def on_message(message):
     if not message.guild:
         recipient = message.channel.recipient.name
-        messenger.info(
-                f"(priv) {message.author} to {recipient if message.author == bot.user else 'Me'}: {message.content}")
+        if message.author.id != bot.user.id:
+            messenger.info(f"(priv) {message.author} to Me: {message.content}")
 
     if message.author.bot:
         return None
@@ -328,7 +331,9 @@ async def on_message(message):
     if bot.user in message.mentions and not message.content.startswith("!"):
         ch = message.channel
         text = random.choice(RUDE)
-        await ch.send(text.format(message.author.name))
+        emote = random.choice(DISRTUBED_FACES)
+
+        await ch.send(text.format(message.author.name, emote=emote))
 
     servers = GLOBAL_SERVERS.copy()
     if not message.content.startswith("!") and message.channel.id in servers:
@@ -369,15 +374,21 @@ async def close():
 
 
 @bot.command()
-async def announce(ctx, message):
+@advanced_args_function(bot)
+@log_call_function
+@advanced_perm_check_function(this_is_disabled, restrictions=is_bot_owner)
+async def announce(ctx, *args, **kwargs):
     raise NotImplementedError
 
 
 async def _announcement(chids=None, text=None, embed=None):
     for ch in chids:
-        channel = bot.get_channel(ch)
-        await channel.send(text, embed=embed)
-        await asyncio.sleep(0.01)
+        try:
+            channel = bot.get_channel(ch)
+            await channel.send(text, embed=embed)
+            await asyncio.sleep(0.01)
+        except Exception:
+            logger.error(f"Error in annoucment: {channel} {channel.guild}")
 
 
 @bot.event
@@ -392,34 +403,46 @@ async def on_command_error(ctx, command_error):
 
     if text_error.startswith("The check functions for command") or text_error.startswith("No permission"):
         logger.warning(f"No permission: '{text}', server: '{server}'")
-        await ctx.message.add_reaction("⛔")
+        emoji = "⛔"
         await ctx.channel.send(f"Some permissions do not allow it to run here '!{invoked}'")
 
     elif text_error.endswith("is not found"):
         logger.warning(f"Command not found: '{text}', server: '{server}'")
-        await ctx.message.add_reaction("❓")
+        emoji = "❓"
 
     elif text_error.startswith("Command raised an exception: RestrictedError"):
         logger.warning(f"Restricted usage: '{text}', server: '{server}'")
-        await ctx.message.add_reaction("⛔")
+        emoji = "⛔"
         await ctx.channel.send(f"{command_error.original} '!{invoked}'")
 
     elif text_error.startswith("Command raised an exception: CommandWithoutPermissions"):
         logger.error(f"Command is free to all users: '{text}', server: '{server}'")
-        await ctx.message.add_reaction("⛔")
+        emoji = "⛔"
         await ctx.channel.send(f"Command is not checking any permissions, sorry. '!{invoked}'")
 
+    elif text_error.startswith("You are missing"):
+        logger.warning(f"Missing permission: '{text_error}', server: '{server}'")
+        emoji = "❌"
+        await ctx.channel.send(f"{text_error} '!{invoked}'")
+
     elif "required positional argument" in text_error:
+        emoji = "❌"
         await ctx.channel.send(f"Some arguments are missing: '{command_error.original}'")
 
     else:
         tb_text = traceback.format_exception(type(command_error), command_error, command_error.__traceback__)
         tb_text = ''.join([line for line in tb_text if f'bot{os.path.sep}' in line or f'app{os.path.sep}' in line])
+        emoji = "❌"
         logger.error(
                 f"No reaction for this error type:\n"
                 f"Command: '{ctx.message.content}', server: '{server}', \n"
                 f"'{command_error}'\n"
                 f"Partial traceback:\n{tb_text}")
+
+    try:
+        await ctx.message.add_reaction(emoji=emoji)
+    except Exception:
+        pass
 
 
 @bot.event
@@ -449,7 +472,7 @@ async def on_member_remove(member):
 @log_call_function
 @advanced_perm_check_function(is_not_priv)
 @log_call_function
-@my_help.help_decorator("You can check how many users is on server")
+@my_help.help_decorator("You can check how many users is on server", menu="Bot")
 async def status(ctx, *args, **kwargs):
     # member = random.choice(ctx.guild.members)
     color = Colour.from_rgb(10, 180, 50)
@@ -473,7 +496,7 @@ def get_list_non_offline_members(members):
 @log_call_function
 @advanced_perm_check_function([is_server_owner, is_not_priv])
 @log_call_function
-@my_help.help_decorator("Removes <X> messages", "!purge <amount>")
+@my_help.help_decorator("Removes <X> messages", "<amount>", menu="moderation")
 async def purge_all(ctx, amount, *args, **kwargs):
     """
     Removes messages in given channel
@@ -504,7 +527,7 @@ async def purge_all(ctx, amount, *args, **kwargs):
 @advanced_perm_check_function(is_server_owner, is_not_priv)
 @delete_call
 @log_call_function
-@my_help.help_decorator("Removes user <X> messages", "!purge_id <user_id> <amount>")
+@my_help.help_decorator("Removes user <X> messages", "<user_id> <amount>", menu="Moderation")
 async def purge_id(ctx, authorid, amount, *args, **kwargs):
     """
     !purge id amount, removes all messages sent by author,
@@ -536,7 +559,7 @@ async def purge_id(ctx, authorid, amount, *args, **kwargs):
 @log_call_function
 @advanced_perm_check_function(is_server_owner, is_not_priv)
 @delete_call
-@my_help.help_decorator("Removes only bot messages", "!purge_bot <amount>")
+@my_help.help_decorator("Removes only bot messages", "<amount>", menu="Moderation")
 async def purge_bot(ctx, amount, *args, **kwargs):
     channel = ctx.channel
     num = int(amount)
@@ -554,7 +577,7 @@ async def purge_bot(ctx, amount, *args, **kwargs):
 @advanced_args_function(bot)
 @log_call_function
 @advanced_perm_check_function(is_not_priv)
-@my_help.help_decorator("Interactive mini game. No borders on sides. Get to end.", "!slipper (<height>)")
+@my_help.help_decorator("Interactive maze game. No borders on sides. Restart map if needed", "(<height>)", menu="fun")
 async def slipper(ctx, dimy=10, dimx=6, *args, **kwargs):
     """
 
@@ -706,11 +729,14 @@ def board_to_monotext(board, el_size=2, distance_between=0,
 @bot.command(aliases=['global'])
 @advanced_args_function(bot)
 @log_call_function
-@advanced_perm_check_function(is_server_owner, is_not_priv)
+@advanced_perm_check_function([is_server_owner, is_not_priv])
+@my_help.help_decorator("Command to add/remove channels from global chat", "add|remove",
+                        help_name="global",
+                        menu="chat")
 async def _global(ctx, key=None, *args, **kwargs):
     if type(key) is str and key.lower() == "add":
         GLOBAL_SERVERS.add(ctx.channel.id)
-        await ctx.send("Global is now here")
+        await ctx.send("Global is now here, temporary till restart.")
     elif type(key) is str and key.lower() == "remove":
         try:
             GLOBAL_SERVERS.remove(ctx.channel.id)
@@ -734,6 +760,8 @@ async def spam(ctx, num=1, *args, **kwargs):
 
 @bot.command()
 @delete_call
+@advanced_args_function(bot)
+@advanced_perm_check_function(restrictions=is_bot_owner)
 async def react(ctx, *args, **kwargs):
     message = await ctx.channel.send("React here")
     await message.add_reaction("✅")
@@ -788,58 +816,172 @@ async def save(ctx, *args, **kwargs):
         await ctx.send(text)
 
 
-@bot.command(aliases=['hi'])
+@bot.command(aliases=['hi', 'helo', 'hey', 'hai'])
 @log_call_function
 async def hello(ctx, *args):
-    pool = ["Hello there {0}", "How is it going today {0} ?", "What's up {0}?", "Hey {0}",
-            "Hi {0}, do you feel well today?", "Good day {0}"]
+    pool = ["Hello there {emote} {0}.",
+            "How is it going today {0}? {emote}",
+            "What's up {0}?", "Hey {0}. {emote}",
+            "Hi {0}, do you feel well today? {emote}",
+            "Good day {0}. {emote}",
+            "Oh {0}! Hello. {emote}",
+            "Hey {emote}. {0}"]
+
     text = random.choice(pool)
-    await ctx.send(text.format(ctx.message.author.name))
+    emote = random.choice(HAPPY_FACES)
+
+    await ctx.send(text.format(ctx.message.author.name, emote=emote))
 
 
 @bot.command(aliases=['h', 'help'])
 @advanced_args_function(bot)
 @log_call_function
-@my_help.help_decorator("Help function", "!help (<cmd>) (perm) (full)", help_name="help")
-async def _help(ctx, cmd_key=None, *args, full=False, **kwargs):
+@my_help.help_decorator("Help function", "(cmd) (full)", help_name="help", menu="bot")
+async def _help(ctx, cmd_key=None, *args, full=None, perm=None, **kwargs):
+    """
+    Show embed help. Decorated with buttons.
+    Args:
+        ctx:
+        cmd_key:
+        *args:
+        full:
+        **kwargs:
+
+    Returns:
+
+    """
+    if 'full' in args or type(full) is str and full.lower() == 'true':
+        full = True
+    if 'perm' in args or type(perm) is str and perm.lower() == 'true':
+        await ctx.send("Permission help not implemented")
+
+    content, embed, is_menu, menu_size, pages_count, this_page = get_help_embed(cmd_key, full=full)
+    help_message = await ctx.send(content=content, embed=embed)
+    was_menu = False
+    emoji_nums = {EMOJIS[num]: num for num in range(1, menu_size + 1)}
+
+    await help_message.add_reaction(EMOJIS["arrow_back_left"])
+
+    if pages_count:
+        await help_message.add_reaction(EMOJIS["arrow_left"])
+        await help_message.add_reaction(EMOJIS["arrow_right"])
+
+    def wait_for_interaction(reaction, user):
+        return user == ctx.message.author \
+               and str(reaction.emoji) in emojis \
+               and reaction.message.id == help_message.id
+
+    while True:
+        emojis = [EMOJIS['green_x'],
+                  EMOJIS['arrow_left'],
+                  EMOJIS['arrow_right'],
+                  EMOJIS['arrow_back_left']] + [EMOJIS[num] for num in range(1, menu_size + 1)]
+
+        # for _ms in range(1, menu_size + 1):
+        #     await help_message.add_reaction(EMOJIS[_ms])
+        # for _ms in range(menu_size + 1, 11):
+        #     await help_message.clear_reaction(EMOJIS[_ms])
+
+        try:
+            reaction, user = await bot.wait_for("reaction_add", check=wait_for_interaction, timeout=600)
+        except asyncio.TimeoutError:
+            break
+
+        try:
+            await reaction.remove(user)
+        except Exception:
+            pass
+
+        em = str(reaction.emoji)
+        page = 0
+
+        if em == EMOJIS["arrow_left"]:
+            pass
+        elif em == EMOJIS["arrow_right"]:
+            pass
+        elif em == EMOJIS["arrow_back_left"]:
+            page = 0
+        elif em in emoji_nums:
+            pass
+        else:
+            pass
+
+        if was_menu:
+            menu = None
+        elif cmd_key:
+            menu = my_help.help_dict.get(cmd_key, None)
+            if menu:
+                menu = menu.get("menu")
+
+        ret = get_help_embed(menu, page=page)
+        content, embed, is_menu, menu_size, pages_count, this_page = ret
+        was_menu = is_menu
+        await help_message.edit(content=content, embed=embed)
+
+
+def get_help_embed(cmd_key=None, full=None, page=0):
     embed = Embed(colour=Colour.from_rgb(60, 255, 150))
     embed.set_author(name=f"{bot.user.name} help menu")
+    is_menu = False
+    menu_size = 0
+    pages_count = 0
+    this_page = 0
 
     if cmd_key:
-        command = my_help.help_dict.get(cmd_key, None)
-        if not command:
-            command = my_help.alias_dict.get(cmd_key, None)
+        cmd_key = cmd_key.lower()
+        command = my_help.help_dict.get(cmd_key, None) or my_help.alias_dict.get(cmd_key, None)
     else:
         command = None
 
+    if cmd_key and not command:
+        content = f"Not found {cmd_key}"
+    else:
+        content = ""
+
     if command:
-        if 'full' in args or type(full) is str and full.lower() == 'true':
+        "1 Command"
+        if full:
             value = command['full']
             if not value:
                 value = command['simple']
             embed.add_field(name=command['example'], value=f"```{value}```")
         else:
             embed.add_field(name=command['example'], value=command['simple'])
+        content = ""
+
+    elif cmd_key in my_help.menus:
+        "1 Menu Page"
+        content = ""
+        is_menu = True
+        commands_in_menu = my_help.menus.get(cmd_key, None)
+        embed.set_author(name=cmd_key.title())
+        for cmd in commands_in_menu:
+            command = my_help.help_dict[cmd]
+            inline = False if len(command["simple"]) > 25 or len(command["example"]) > 25 else True
+            embed.add_field(name=command["example"], value=command["simple"], inline=inline)
 
     else:
-        show_this = my_help.help_dict.items()
+        "Full Menu"
+        menus = my_help.menus.items()
+        is_menu = True
+        for num, (menu, commands) in enumerate(menus):
+            if not menu:
+                continue
+            inline = True
 
-        for cmd, value in show_this:
-            simple_text = value['simple']
-            example = value['example']
-            aliases = value['aliases']
-            inline = False if (aliases or len(example) > 21) \
-                else True
-            embed.add_field(name=example, value=f"{simple_text}", inline=inline)
+            menu = menu.title()
+            desc = my_help.menus_desc.get(menu.lower(), "No description")
+            embed.add_field(name=menu, value=f"`{EMOJIS[num + 1]}` {desc}", inline=inline)
 
     embed.set_thumbnail(url=bot.user.avatar_url)
-    await ctx.send(embed=embed)
+
+    return content, embed, is_menu, menu_size, pages_count, this_page
 
 
 @bot.command()
 @delete_call
 @log_call_function
-@my_help.help_decorator("Sweeper game, don't blow it up", "!sweeper (<size>) (<bombs>)")
+@my_help.help_decorator("Sweeper game, don't blow it up", "(<size>) (<bombs>)")
 async def sweeper(ctx, *args):
     """
     Generates sweeper game, !sweeper (size) (bombs)
@@ -907,7 +1049,7 @@ async def sweeper(ctx, *args):
 @log_call_function
 @advanced_perm_check_function(is_not_priv)
 @my_help.help_decorator("Poll with maximum 10 answers. Minimum 2 answers, maximum 10. timeout is optional",
-                        "!poll <question>? <ans1>, ..., <ans10> (timeout=<sec>)")
+                        "<question>? <ans1>, ..., <ans10> (timeout=<sec>)")
 async def poll(ctx, *args, force=False, dry=False, timeout=2 * 60, **kwargs):
     """
     Multi choice poll with maximum 10 answers
@@ -924,8 +1066,9 @@ async def poll(ctx, *args, force=False, dry=False, timeout=2 * 60, **kwargs):
     Returns:
 
     """
+
     text = ' '.join(args)
-    arr_text = re.split(r"['\.?;,']", text)
+    arr_text = re.split(r"[ '.?;,]", text)
     arr_text = [el.lstrip().rstrip() for el in arr_text if len(el) > 0]
     poll_color = Colour.from_rgb(250, 165, 0)
     finished_poll_color = Colour.from_rgb(30, 255, 0)
@@ -949,8 +1092,22 @@ async def poll(ctx, *args, force=False, dry=False, timeout=2 * 60, **kwargs):
         return None
 
     elif len(answers) > 10:
-        await ctx.send(f"Got more than 10 answers, sorry")
-        return None
+        confirm_message = await ctx.send(
+                f"Got more than 10 answers, sorry. If you want poll with 10 answers, press reaction.",
+                delete_after=60)
+        await confirm_message.add_reaction(EMOJIS["green_ok"])
+
+        def wait_for_confirm(reaction, _cur_user):
+            return str(reaction.emoji) == EMOJIS["green_ok"] \
+                   and _cur_user.id == ctx.author.id \
+                   and reaction.message.id == confirm_message.id
+
+        try:
+            reaction, user = await bot.wait_for("reaction_add", check=wait_for_confirm, timeout=60)
+            answers = answers[0:10]
+            await confirm_message.delete()
+        except asyncio.TimeoutError:
+            return None
     try:
         await ctx.message.delete()
     except Exception:
@@ -963,7 +1120,7 @@ async def poll(ctx, *args, force=False, dry=False, timeout=2 * 60, **kwargs):
     embed.set_thumbnail(url=ctx.author.avatar_url)
 
     for num, ans in enumerate(answers, 1):
-        emoji = EMOJIS[str(num)]
+        emoji = EMOJIS[num]
         answer_dict[emoji] = {'ans': ans.title(), 'votes': 0}
         embed.add_field(name=emoji, value=ans, inline=False)
 
@@ -971,7 +1128,7 @@ async def poll(ctx, *args, force=False, dry=False, timeout=2 * 60, **kwargs):
 
     await poll.add_reaction("🛑")
     for num in range(1, len(answers) + 1):
-        await poll.add_reaction(EMOJIS[str(num)])
+        await poll.add_reaction(EMOJIS[num])
         await asyncio.sleep(0.01)
 
     def check_end_reaction(reaction, user):
@@ -997,7 +1154,7 @@ async def poll(ctx, *args, force=False, dry=False, timeout=2 * 60, **kwargs):
         poll = await ctx.channel.fetch_message(poll.id)
         # all_votes = 0
         all_users = []
-        vote_emojis = [EMOJIS[str(num)] for num in range(1, 11)]
+        vote_emojis = [EMOJIS[num] for num in range(1, 11)]
         for rc in poll.reactions:
             if rc.emoji not in vote_emojis:
                 continue
@@ -1015,7 +1172,7 @@ async def poll(ctx, *args, force=False, dry=False, timeout=2 * 60, **kwargs):
         embed.set_footer(text=f"Time left: {(end_time - time.time()) / 60:4.1f} min")
         for number in range(1, 11):
             try:
-                emoji = EMOJIS[str(number)]
+                emoji = EMOJIS[number]
                 ans = answer_dict[emoji]['ans']
                 votes = answer_dict[emoji]['votes']
                 # fraction = votes / all_votes * 100 if all_votes > 0 else 0
@@ -1035,18 +1192,16 @@ async def poll(ctx, *args, force=False, dry=False, timeout=2 * 60, **kwargs):
     await poll.clear_reaction("🛑")
 
 
-@bot.command()
+@bot.command(aliases=['murder'])
 @advanced_args_function(bot)
 @log_call_function
 @advanced_perm_check_function(is_not_priv)
-@my_help.help_decorator("Shoot somebody", "!shoot <@user> (<num>)")
+@my_help.help_decorator("Kill somebody", "<@user> (<num>)", menu="fun", aliases=['murder'])
 async def shoot(ctx, *args, force=False, dry=False, **kwargs):
     """
     Send message that mention somebody up to 10 times, and show gun with faces.
     Args:
         ctx:
-        user:
-        num:
         *args:
         force:
         dry:
@@ -1057,13 +1212,25 @@ async def shoot(ctx, *args, force=False, dry=False, **kwargs):
     """
     LIVE_EMOJIS = ['😀', '😃', '😁', '😕', '😟', '😒', '😩', '🥺', '😭', '😢', '😬', '😶']
     DEAD_EMOJIS = ['😵', '💀', '☠️', '👻']
+    BLADES = ["🗡️", "🔪"]
 
     try:
         user = ctx.message.mentions[0].mention
-        num = args[0]
+        try:
+            num = args[0]
+        except IndexError:
+            num = 1
     except IndexError:
-        user = args[0]
-        num = args[1]
+        try:
+            user = args[0]
+        except IndexError:
+            await ctx.send("🤔")
+            return None
+
+        try:
+            num = args[1]
+        except IndexError:
+            num = 1
 
     num = int(num)
     if num > 10 and not force:
@@ -1072,9 +1239,14 @@ async def shoot(ctx, *args, force=False, dry=False, **kwargs):
     for x in range(num):
         liv_em = random.choice(LIVE_EMOJIS)
         dead_em = random.choice(DEAD_EMOJIS)
-        shoot = await ctx.send(f"{user} {liv_em} ⬛🔫 {ctx.author.mention}")
+        blade = random.choice(BLADES)
+        pre = "⬛🔫" if ctx.invoked_with == "shoot" else blade
+        post = "💥🔫" if ctx.invoked_with == "shoot" else blade
+
+        shoot = await ctx.send(f"{user} {liv_em} {pre} {ctx.author.mention}")
         await asyncio.sleep(random.randint(10, 30) / 10)
-        await shoot.edit(content=f"{user} {dead_em} 💥🔫 {ctx.author.mention}")
+
+        await shoot.edit(content=f"{user} {dead_em} {post} {ctx.author.mention}")
 
 
 async def get_picture(url_pic):
@@ -1105,8 +1277,8 @@ def save_image(image, path):
 @bot.command(aliases=['feedback', 'report', 'problem', 'suggestion', 'suggest', 'idea'])
 @advanced_args_function(bot)
 @log_call_function
-@my_help.help_decorator("Send feedback to author, problems or new ideas.",
-                        "!feedback <text>",
+@my_help.help_decorator("Send feedback to author, problems or new ideas, depending on which command was used.",
+                        "<text>",
                         aliases=['feedback', 'report', 'problem', 'suggestion', 'suggest', 'idea'],
                         help_name="feedback")
 async def _user_feedback(ctx, *args, text, **kwargs):
@@ -1129,17 +1301,28 @@ async def _user_feedback(ctx, *args, text, **kwargs):
     Returns:
 
     """
+    feedback_channel = 758358711382573056 if bot.user.name == "YasiuBot" else 757975910233145448
     invoked = ctx.invoked_with
     if invoked == "feedback":
-        feedback.info(f"{ctx.author}, {ctx.guild}, has sent feedback: {text}")
+        text = f"{ctx.author}, {ctx.guild}, has sent feedback: {text}"
+        feedback.info(text)
+
     elif invoked == "report" or invoked == "problem":
-        feedback.warning(f"{ctx.author}, {ctx.guild}, has reported this problem: {text}")
+        text = f"{ctx.author}, {ctx.guild}, has reported this problem: {text}"
+        feedback.warning(text)
+
     elif invoked == "suggestion" or invoked == "suggest" or invoked == "tip" or invoked == "idea":
-        feedback.warning(f"{ctx.author}, {ctx.guild}, has a suggestion: {text}")
+        text = f"{ctx.author}, {ctx.guild}, has a suggestion: {text}"
+        feedback.warning(text)
+
     else:
-        feedback.warning(f"{ctx.author}, {ctx.guild}, send message: {text}")
+        text = f"{ctx.author}, {ctx.guild}, send message: {text}"
+        feedback.warning(text)
+
+    channel = bot.get_channel(feedback_channel)
+    await channel.send(text)
 
 
 os.makedirs("avatars", exist_ok=True)
-my_help.create_help_dict()
+my_help.create_help()
 bot.add_cog(CogTest())

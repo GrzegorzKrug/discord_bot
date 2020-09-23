@@ -23,6 +23,7 @@ class CogTest(Cog):
     async def eftgetammo(self, ctx, *args, **kwargs):
         """
         Request and process ammo spreadsheet in current shape.
+        https://docs.google.com/spreadsheets/d/1_l-gYeSt2MqIw62EdMZt_wefG0yO9L7dTaRM74c2J1w/htmlview#
         Args:
             ctx:
             *args:
@@ -86,10 +87,11 @@ class CogTest(Cog):
         row_elements = [cell.text.title() for cell in row_elements]
         row_elements[0] = row_elements[0].replace('"', '').replace(r"/", "x").replace(r"X", "x").lower()
         if split_caliber:
+
             try:
-                caliber, name = re.split(r"[a-z]* ?mm ?", row_elements[0])
+                caliber, name = re.split(r" ?[a-z]* ?mm ?", row_elements[0])
             except ValueError:
-                caliber, *name = re.split(r' \b', row_elements[0])
+                caliber, *name = re.split(r' +\b', row_elements[0])
                 name = ' '.join(name)
             name = name.title()
             caliber = caliber.lower()
@@ -103,7 +105,7 @@ class CogTest(Cog):
     @command()
     @advanced_args_method()
     @log_call_method
-    @my_help.help_decorator("Show ammo stats from EFT.", "!ammo <caliber>|<name>|grenades|tracer (<sorting>)")
+    @my_help.help_decorator("Show ammo stats from EFT.", "<caliber>|<name>|grenades|tracer (<sorting>)", menu="Tarkov")
     @check_query_method
     async def ammo(self, ctx, query=None, priority=None, *args, **kwargs):
         """

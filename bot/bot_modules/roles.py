@@ -27,7 +27,7 @@ async def create_color_roles(ctx, *args, **kwargs):
             logger.debug("Creating role: {}")
             await guild.create_role(name=name, color=Colour.from_rgb(*color), **params)
         else:
-            print(f"editing role: {name}")
+            logger.debug(f"Editing role: {name}")
             await dc[name].edit(color=Colour.from_rgb(*color), **params)
     all_roles = ctx.guild.roles
 
@@ -39,6 +39,7 @@ async def create_color_roles(ctx, *args, **kwargs):
 @advanced_args_function(bot)
 @advanced_perm_check_function(restrictions=is_not_priv)
 @approve_fun
+@log_call_function
 @my_help.help_decorator("Show roles.py on server", menu="role")
 async def roles(ctx, *args, **kwargs):
     guild = ctx.message.guild
@@ -71,27 +72,65 @@ async def roles(ctx, *args, **kwargs):
 @log_call_function
 @approve_fun
 @my_help.help_decorator("Create smooth colored roles.py",
-                        "<name> <end_level> <level_step> start=(r,g,b) stop=(r,g,b)",
+                        "name max_level step start=(r,g,b) stop=(r,g,b)",
                         menu="role")
-async def smooth_role_levels(ctx, name, end_level, level_step, *args, start, stop, **kwargs):
+async def create_color_levels(ctx, name, end_level, level_step, *args, start, stop, dry=False, **kwargs):
+    """
+    Create roles with given name, and every level.
+    Use -d or dry to dryrun command
+    Args:
+        ctx:
+        name:
+        end_level:
+        level_step:
+        *args:
+        start:
+        stop:
+        **kwargs:
+
+    Returns:
+
+    """
     guild = ctx.message.guild
 
     name = name.title()
     level_step = int(level_step)
     end_level = int(end_level)
 
-    start = literal_eval(start)
-    stop = literal_eval(stop)
+    start = "".join(start)
+    stop = "".join(stop)
+
+    logger.debug(start)
+    logger.debug(stop)
+    try:
+        start = literal_eval(start)
+        stop = literal_eval(stop)
+    except Exception:
+        await ctx.send("Please do not use spaces in ()")
+        return None
 
     start = tuple(int(num) for num in start)
     stop = tuple(int(num) for num in stop)
-    assert len(start) == 3 and len(stop) == 3
+
+    if len(start) != 3 or len(stop) != 3:
+        await ctx.send("You gave incorrect colors")
+        return None
 
     levels = [*range(level_step, end_level + 1, level_step)]
+
     num = len(levels)
     red = np.linspace(start[0], stop[0], num)
     green = np.linspace(start[1], stop[1], num)
     blue = np.linspace(start[2], stop[2], num)
+
+    if dry:
+        await ctx.send(f"This will create {num} roles")
+        return None
+    elif len(levels) > 100:
+        await ctx.send(f"This will add more than 100 roles: {len(levels)} \n"
+                       f"I can't do that. You can have only 250 roles max.")
+        return None
+
     roles = {}
     for x, (level, color) in enumerate(zip(levels, zip(red, green, blue))):
         color = tuple([int(c) for c in color])
@@ -101,14 +140,15 @@ async def smooth_role_levels(ctx, name, end_level, level_step, *args, start, sto
     params = {'mentionable': False, 'hoist': False}
     for name, color in roles.items():
         if name not in dc:
-            print(f"adding role: {name}")
+            logger.debug(f"adding role: {name}")
             await guild.create_role(name=name, color=Colour.from_rgb(*color), **params)
         else:
-            print(f"editing role: {name}")
+            logger.debug(f"editing role: {name}")
             await dc[name].edit(color=Colour.from_rgb(*color), **params)
 
     all_roles = ctx.guild.roles
     debug_colors = [role.mention for role in all_roles if role.name in roles]
+    logger.info(f"Added {len(debug_colors)} roles in {ctx.guild}")
     await ctx.send("Roles: " + ' '.join(debug_colors))
 
 
@@ -117,16 +157,21 @@ async def smooth_role_levels(ctx, name, end_level, level_step, *args, start, sto
 @advanced_args_function(bot)
 @advanced_perm_check_function(restrictions=is_not_priv)
 @log_call_function
-@my_help.help_decorator("Removes all rolles added with smooth color", menu="role")
-async def purge_yasiu_roles(ctx, *args, **kwargs):
+@my_help.help_decorator("Removes all roles added with smooth color", menu="role")
+async def purge_yasiu_roles(ctx, *args, dry=False, **kwargs):
     count = 0
+
     for role in ctx.guild.roles:
         if role.name.startswith("yasiu_"):
             try:
-                await role.delete()
+                if not dry:
+                    await role.delete()
                 count += 1
             except Exception:
                 pass
-    text = f"Removed {count} Yasiu's roles.py"
-    logger.info(text + f" at {ctx.guild}")
-    await ctx.send(text)
+    if not dry:
+        text = f"Removed {count} Yasiu's roles"
+        logger.info(text + f" at {ctx.guild}")
+        await ctx.send(text)
+    else:
+        await ctx.send(f"This will remove {count} roles")

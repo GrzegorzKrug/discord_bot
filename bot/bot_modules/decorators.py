@@ -99,6 +99,7 @@ def log_duration_any(coro):
 
 
 def _get_advanced_args(bot, ctx, *args, bold_name=False, **kwargs):
+    args = list(args)
     if not kwargs:
         kwargs = {"force": False, "dry": False, "sudo": False}
 
@@ -133,9 +134,15 @@ def _get_advanced_args(bot, ctx, *args, bold_name=False, **kwargs):
             name = string_mention_converter(bot, ctx.guild, arg, bold_name=bold_name)
             text_args.append(name)
 
-        else:
+        elif arg:
+            if ',' in arg:
+                arg, *rest = arg.split(',')
+                for _rest in rest:
+                    args.append(_rest)
             good_args.append(arg)
             text_args.append(arg)
+        else:
+            logger.debug(f"Unwanted arg: '{arg}'")
 
     good_args = tuple(good_args)
     text = ' '.join(text_args)
@@ -350,6 +357,7 @@ def approve_fun(coro):
             return result
         except Exception as pe:
             await ctx.message.add_reaction('❌')
+            raise pe
 
     decorator.__name__ = coro.__name__
     decorator.__doc__ = coro.__doc__
@@ -399,6 +407,126 @@ def trash_after(bot, timeout=600, delete_after_TO=False):
                     return None
 
             await message.delete()
+
+        decorator.__name__ = coro.__name__
+        decorator.__doc__ = coro.__doc__
+        return decorator
+
+    return function
+
+
+def pages(bot, timeout=600):
+    """
+    Decorated function must return message!
+    Args:
+        bot: bot instance
+        timeout: Integer, default 600
+        delete_with_TO: Delete if timeout occured.
+
+    Returns:
+        message object returned by calling given function with given params
+    """
+
+    def function(coro):
+        async def decorator(ctx, *args, **kwargs):
+            page = 0
+            message = await coro(ctx, *args, page=0, **kwargs)
+
+            def wait_for_arrow(reaction, user):
+                return user == ctx.message.author \
+                       and str(reaction.emoji) in [EMOJIS['green_x'], EMOJIS['arrow_left'], EMOJIS['arrow_right']] \
+                       and reaction.message.id == message.id
+
+            await message.add_reaction(EMOJIS['green_x'])
+            await message.add_reaction(EMOJIS['arrow_left'])
+            await message.add_reaction(EMOJIS['arrow_right'])
+
+            while True:
+                try:
+                    reaction, user = await bot.wait_for("reaction_add",
+                                                        check=wait_for_arrow,
+                                                        timeout=timeout)
+                    await reaction.remove(user)
+
+                    if str(reaction.emoji) == EMOJIS['green_x']:
+                        break
+                    elif str(reaction.emoji) == EMOJIS['arrow_right']:
+                        page += 1
+                    else:
+                        page -= 1
+                    await coro(ctx, *args, old_message=message, page=page)
+
+                except Exception as err:
+                    print(err)
+                    break
+            await message.clear_reaction(EMOJIS["green_x"])
+            await message.clear_reaction(EMOJIS["arrow_left"])
+            await message.clear_reaction(EMOJIS["arrow_right"])
+
+        decorator.__name__ = coro.__name__
+        decorator.__doc__ = coro.__doc__
+        return decorator
+
+    return function
+
+
+def menus(bot, menu_count=10, timeout=600):
+    """
+    Decorated function must return message!
+    Args:
+        bot: bot instance
+        timeout: Integer, default 600
+        delete_with_TO: Delete if timeout occured.
+
+    Returns:
+        message object returned by calling given function with given params
+    """
+
+    def function(coro):
+        async def decorator(ctx, *args, **kwargs):
+            page = 0
+            menu = 0
+            message = await coro(ctx, *args, **kwargs)
+            emojis = [EMOJIS['green_x'], EMOJIS['arrow_left'], EMOJIS['arrow_right'], EMOJIS['arrow_back_left']] \
+                     + [EMOJIS[num] for num in range(1, menu_count + 1)]
+            emoji_pages_dict = {EMOJIS[num]: num for num in range(1, menu_count + 1)}
+
+            def wait_for_arrow(reaction, user):
+                return user == ctx.message.author \
+                       and str(reaction.emoji) in emojis \
+                       and reaction.message.id == message.id
+
+            # for em in emojis:
+            await message.add_reaction(EMOJIS['green_x'])
+            await message.add_reaction(EMOJIS['arrow_back_left'])
+
+            while True:
+                try:
+                    reaction, user = await bot.wait_for("reaction_add",
+                                                        check=wait_for_arrow,
+                                                        timeout=timeout)
+                    await reaction.remove(user)
+
+                    if str(reaction.emoji) == EMOJIS['green_x']:
+                        break
+                    elif str(reaction.emoji) == EMOJIS['arrow_right']:
+                        page += 1
+                    elif str(reaction.emoji) in emoji_pages_dict:
+                        page = 0
+                        menu = emoji_pages_dict[str(reaction.emoji)]
+                    elif str(reaction.emoji) == EMOJIS['arrow_back_left']:
+                        menu = 0
+                        page = 0
+                    else:
+                        page -= 1
+
+                    await coro(ctx, old_message=message, menu=menu, page=page)
+
+                except Exception as err:
+                    print(err)
+                    break
+            for em in emojis:
+                await message.clear_reaction(em)
 
         decorator.__name__ = coro.__name__
         decorator.__doc__ = coro.__doc__

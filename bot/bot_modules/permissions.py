@@ -23,6 +23,15 @@ def has_arguments(ctx, *args, **kwargs):
         return False, RestrictedError("This requires arguments.")
 
 
+# def has_role_perm(ctx, *args, **kwargs):
+#     if False:
+#         ctx.author.rol
+#         return True, None
+#
+#     else:
+#         return False, RestrictedError("This command is restricted to user with role-manage permission.")
+
+
 def is_priv(ctx, *args, **kwargs):
     if ctx.guild:
         return False, RestrictedError("This command is restricted to private channels.")
