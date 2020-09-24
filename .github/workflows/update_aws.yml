@@ -13,7 +13,7 @@ jobs:
       - name: "Connect to EC2"
         run: |
           echo "asd" > key.pem
-          echo {{secrets.TEST}} > TEST.pem
+          echo ${secrets.TEST} > TEST.pem
           cat TEST.pem
       - name: "Stop bot containers"
         run: |
