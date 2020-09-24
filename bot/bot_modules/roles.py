@@ -36,6 +36,32 @@ async def create_color_roles(ctx, *args, **kwargs):
     await ctx.send(' '.join(debug_colors[role] for role in roles))
 
 
+# @bot.command()
+# @commands.has_permissions(manage_roles=True)
+# @advanced_args_function(bot)
+# @advanced_perm_check_function(restrictions=is_not_priv)
+# @approve_fun
+# @log_call_function
+# @my_help.help_decorator("Create basic roles.py with colors", menu="role")
+# async def set_roles_colors(ctx, *args, **kwargs):
+#     guild = ctx.message.guild
+#
+#     dc = {role.name: role for role in guild.roles}
+#     params = {'mentionable': False, 'hoist': False}
+#
+#     for role in ctx.mentions:
+#         if role.name not in dc:
+#             logger.debug("Creating role: {}")
+#             await guild.create_role(name=name, color=Colour.from_rgb(*color), **params)
+#         else:
+#             logger.debug(f"Editing role: {name}")
+#             await dc[name].edit(color=Colour.from_rgb(*color), **params)
+#     all_roles = ctx.guild.roles
+#
+#     debug_colors = {role.name: role.mention for role in all_roles if role.name in roles}
+#     await ctx.send(' '.join(debug_colors[role] for role in roles))
+
+
 @bot.command()
 @advanced_args_function(bot)
 @advanced_perm_check_function(restrictions=is_not_priv)

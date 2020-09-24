@@ -517,7 +517,6 @@ async def purge_all(ctx, amount, *args, **kwargs):
 
         deleted = await channel.purge(limit=num, check=check_true)
         logger.info(f"Removed {len(deleted)} messages in {ctx.channel}: {ctx.guild}")
-
         await ctx.send(f"♻️ Removed {len(deleted)} messages", delete_after=10)
 
 
@@ -1045,12 +1044,12 @@ async def sweeper(ctx, *args):
 
 
 @bot.command(aliases=['czy', 'is', 'what', 'how'])
-@advanced_kwargs_only_function(bot)
+@advanced_args_function(bot)
 @log_call_function
 @advanced_perm_check_function(is_not_priv)
 @my_help.help_decorator("Poll with maximum 10 answers. Minimum 2 answers, maximum 10. timeout is optional",
                         "<question>? <ans1>, ..., <ans10> (timeout=<sec>)")
-async def poll(ctx, *args, force=False, dry=False, timeout=2 * 60, **kwargs):
+async def poll(ctx, *args, text, force=False, dry=False, timeout=2 * 60, **kwargs):
     """
     Multi choice poll with maximum 10 answers
     Example `!poll Question, answer1, answer2, .... answer10`
@@ -1067,7 +1066,7 @@ async def poll(ctx, *args, force=False, dry=False, timeout=2 * 60, **kwargs):
 
     """
 
-    text = ' '.join(args)
+    # text = ' '.join(args)
     logger.debug(text)
     arr_text = re.split(r"['.?;,]", text)
     arr_text = [el.lstrip().rstrip() for el in arr_text if len(el) > 0]
@@ -1119,6 +1118,7 @@ async def poll(ctx, *args, force=False, dry=False, timeout=2 * 60, **kwargs):
     embed = Embed(title=question, colour=poll_color)
     embed.set_author(name=ctx.author.name)
     embed.set_thumbnail(url=ctx.author.avatar_url)
+    embed.set_footer(text=f"Time left: {timeout / 60:4.1f} min")
 
     for num, ans in enumerate(answers, 1):
         emoji = EMOJIS[num]
@@ -1232,8 +1232,11 @@ async def shoot(ctx, *args, force=False, dry=False, **kwargs):
             num = args[1]
         except IndexError:
             num = 1
+    try:
+        num = int(num)
+    except ValueError:
+        num = 1
 
-    num = int(num)
     if num > 10 and not force:
         num = 10
 

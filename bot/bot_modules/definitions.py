@@ -160,7 +160,7 @@ RUDE = ['Why you bother me {0}? {emote}',
         "Use commands if you need something {0}. {emote}",
         "Staph it. Get some help {0}. {emote}"]
 
-GLOBAL_SERVERS = {755063230300160030, 755065402777796663, 755083175491010590}
+GLOBAL_SERVERS = {755065402777796663}
 YOUSHISU_ID = 147795752943353856
 BOT_URL = r"https://discord.com/api/oauth2/authorize?client_id=750688123008319628&permissions=470019283&scope=bot"
 BOT_TEST_URL = r"https://discord.com/api/oauth2/authorize?client_id=757339370368794696&permissions=470019283&scope=bot"

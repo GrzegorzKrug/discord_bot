@@ -99,42 +99,16 @@ def log_duration_any(coro):
 
 
 def _get_advanced_args(bot, ctx, *args, bold_name=False, **kwargs):
-    args = list(args)
     if not kwargs:
         kwargs = {"force": False, "dry": False, "sudo": False}
 
     good_args = list()
-    mention_pattern = re.compile(r"<@[!&]\d+>")
     text_args = []
+    args, kwargs = _get_advanced_kwargs(bot, ctx, *args, **kwargs, bold_name=bold_name)
+    args = list(args)
 
     for arg in args:
-        if arg.startswith("-f") or arg == 'force':
-            "force, enforce parameters"
-            kwargs['force'] = True
-        elif arg.startswith("-d") or arg == 'dry':
-            "dry run"
-            kwargs['dry'] = True
-        elif arg.startswith("-s") or arg.startswith("-a") or arg == 'sudo':
-            "sudo or admin"
-            kwargs['sudo'] = True
-        elif arg.startswith("-"):
-            try:
-                _ = float(arg)
-                good_args.append(arg)
-            except ValueError:
-                "drop unknown parameters"
-                logger.warning(f"unknown argument: {arg}")
-        elif "=" in arg:
-            key, val = arg.split("=")
-            if key == "force" or key == "dry":
-                continue
-            if key and val:
-                kwargs.update({key: val})
-        elif mention_pattern.match(arg) or "@everyone" in arg or "@here" in arg:
-            name = string_mention_converter(bot, ctx.guild, arg, bold_name=bold_name)
-            text_args.append(name)
-
-        elif arg:
+        if arg:
             if ',' in arg:
                 arg, *rest = arg.split(',')
                 for _rest in rest:
@@ -144,10 +118,7 @@ def _get_advanced_args(bot, ctx, *args, bold_name=False, **kwargs):
         else:
             logger.debug(f"Unwanted arg: '{arg}'")
 
-    good_args = tuple(good_args)
-    text = ' '.join(text_args)
-    kwargs['text'] = text
-
+    good_args = tuple(_ar for _ar in good_args if _ar)
     return good_args, kwargs
 
 
