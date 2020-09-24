@@ -13,7 +13,7 @@ jobs:
       - name: "Connect to EC2"
         run:
           echo ${{secrets.EC2_KEY}} > key.pem
-          ssh -i "key.pem" ubuntu@{secrets.EC2_IP} -y
+          ssh -i key.pem ubuntu@{secrets.EC2_IP} -y
           cd ~/app/discord_bot
           docker-compose down
           git pull
