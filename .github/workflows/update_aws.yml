@@ -9,12 +9,9 @@ on:
 jobs:
   update_ec2:
     runs-on: ubuntu-latest
-    steps:
-      - env:
-          IP: ${{ secrets.EC2_IP}}
-          KEY: ${{ secrets.EC2_KEY}}
+    steps:           
       - run: |
-          ssh -i "$KEY" ubuntu@"$IP"
+          ssh -i "$EC2_KEY" ubuntu@"$EC2_IP"
           cd ~/app/discord_bot
           docker-compose down
           git pull
