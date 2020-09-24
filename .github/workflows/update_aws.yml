@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:           
       - run: |
-          echo "${{secrets.EC2_KEY}}" > key.pem
+          echo ${{secrets.EC2_KEY}} > key.pem
           ssh -i key.pem ubuntu@{secrets.EC2_IP} -y
           cd ~/app/discord_bot
           docker-compose down
