@@ -11,11 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:           
       - name: "Connect to EC2"
-        run: |
-          echo ${{secrets.EC2_KEY}} > key.pem
-          echo ${secrets.TEST} > TEST.pem
-          cat TEST.pem
-          ssh -i key.pem ubuntu@${{secrets.EC2_IP}} -y;
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          key: ${{ secrets.EC2_KEY }}
+          script: whoami
       - name: "Stop bot containers"
         run: |
           cd ~/app/discord_bot
