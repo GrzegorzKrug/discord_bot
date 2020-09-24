@@ -5,6 +5,7 @@ from .permissions import *
 from ast import literal_eval
 
 from discord.ext import commands
+from discord import Embed
 
 import numpy as np
 
@@ -43,7 +44,7 @@ async def create_color_roles(ctx, *args, **kwargs):
 @my_help.help_decorator("Show roles.py on server", menu="role")
 async def roles(ctx, *args, **kwargs):
     guild = ctx.message.guild
-    txt_start = 'Roles: '
+    txt_start = ''
     role_text = []
     for role in guild.roles[1:]:
         role_text.append(role.mention)
@@ -54,14 +55,16 @@ async def roles(ctx, *args, **kwargs):
             new_text = text + f" {role}"
 
             if len(new_text) > 2_000:
-                await ctx.send(text)
+                embed = Embed(title="Roles:", description=text)
+                await ctx.send(embed=embed)
                 text = ""
                 role_text = role_text[i:]
                 break
             else:
                 text = new_text
         else:
-            await ctx.send(text)
+            embed = Embed(title="Roles:", description=text)
+            await ctx.send(embed=embed)
             break
 
 
