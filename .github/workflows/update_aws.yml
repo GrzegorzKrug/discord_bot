@@ -12,7 +12,7 @@ jobs:
     steps:           
       - name: "Connect to EC2"
         run: |
-          echo "asd" > key.pem;
-          echo "tttert" > TEST.pem;
-          cat TEST.pem;
+          echo "asd" > key.pem
+          echo "tttert" > TEST.pem
+          cat TEST.pem
 
