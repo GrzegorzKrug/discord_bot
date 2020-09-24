@@ -16,10 +16,10 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: "ubuntu"
           key: ${{ secrets.EC2_KEY }}
-          script: whoami
-
-            cd ~/app/discord_bot
-            docker-compose down
-            git pull                
-            docker-compose up -d
-            exit
+          script: 
+            whoami;
+            cd ~/app/discord_bot;
+            docker-compose down;
+            git pull;    
+            docker-compose up -d;
+            exit;
