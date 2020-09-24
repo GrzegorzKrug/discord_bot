@@ -1,12 +1,20 @@
-on: 
-  workflow_dispatch:
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
 
 jobs:
   printInputs:
     runs-on: ubuntu-latest
     steps:
+    - env:
+        IP: ${{ secrets.EC2_IP}}
+        KEY: ${{ secrets.EC2_KEY}}
     - run: |
-        ssh -i $EC2_KEY ubuntu@$EC2_IP
+        ssh -i "$KEY" ubuntu@"$IP"
         cd ~/app/discord_bot
         docker-compose down
         git pull
