@@ -10,22 +10,16 @@ jobs:
   update_ec2:
     runs-on: ubuntu-latest
     steps:           
-      - name: "Connect to EC2"
+      - name: "Connect to Instance"
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
           username: "ubuntu"
           key: ${{ secrets.EC2_KEY }}
           script: whoami
-      - name: "Stop bot containers"
-        run: |
-          cd ~/app/discord_bot
-          docker-compose down
-      - name: "Update bot files"
-        run: |
-          git pull          
-      - name: "Start updated bot"
-        run: |
-          docker-compose up -d
-          exit
 
+            cd ~/app/discord_bot
+            docker-compose down
+            git pull                
+            docker-compose up -d
+            exit
