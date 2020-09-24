@@ -7,17 +7,17 @@ on:
     - master
 
 jobs:
-  printInputs:
+  update_ec2:
     runs-on: ubuntu-latest
     steps:
-    - env:
-        IP: ${{ secrets.EC2_IP}}
-        KEY: ${{ secrets.EC2_KEY}}
-    - run: |
-        ssh -i "$KEY" ubuntu@"$IP"
-        cd ~/app/discord_bot
-        docker-compose down
-        git pull
-        docker-compose up -d
-        exit
-        echo "Finished" 
+      - env:
+          IP: ${{ secrets.EC2_IP}}
+          KEY: ${{ secrets.EC2_KEY}}
+      - run: |
+          ssh -i "$KEY" ubuntu@"$IP"
+          cd ~/app/discord_bot
+          docker-compose down
+          git pull
+          docker-compose up -d
+          exit
+          echo "Finished" 
