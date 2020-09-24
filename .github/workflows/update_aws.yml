@@ -18,7 +18,7 @@ jobs:
           docker-compose up -d
           exit
           echo "Finished" 
-      - env:
-          FIRST_NAME: Mona
-          middle_name: The
-          Last_Name: Octocat
+        env:
+            FIRST_NAME: Mona
+            middle_name: The
+            Last_Name: Octocat
