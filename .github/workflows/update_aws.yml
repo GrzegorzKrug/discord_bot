@@ -15,4 +15,15 @@ jobs:
           echo "asd" > key.pem
           echo "tttert" > TEST.pem
           cat TEST.pem
+      - name: "Stop bot containers"
+        run: |
+          cd ~/app/discord_bot
+          docker-compose down
+      - name: "Update bot files"
+        run: |
+          git pull          
+      - name: "Start updated bot"
+        run: |
+          docker-compose up -d
+          exit
 
