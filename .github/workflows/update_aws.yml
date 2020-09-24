@@ -1,0 +1,25 @@
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+
+jobs:
+  update_ec2:
+    runs-on: ubuntu-latest
+    steps:           
+      - name: "Connect to Instance"
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: "ubuntu"
+          key: ${{ secrets.EC2_KEY }}
+          script: 
+            whoami;
+            cd ~/app/discord_bot;
+            docker-compose down;
+            git pull;    
+            docker-compose up -d;
+            exit;
