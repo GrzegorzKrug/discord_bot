@@ -15,13 +15,4 @@ jobs:
           echo "asd" > key.pem;
           echo "tttert" > TEST.pem;
           cat TEST.pem;
-          ssh -i key.pem ubuntu@{secrets.EC2_IP} -y;
-          cd ~/app/discord_bot;
-          docker-compose down;
-          git pull;
-          docker-compose up -d;
-          exit;
-          echo "Finished" ;
-        env:      
-          KEY: ${{secrets.EC2_KEY}}
-          IP: ${{secrets.EC2_IP}}
+
