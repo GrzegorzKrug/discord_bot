@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:           
       - run: |
-          ssh -i "${{secrets.EC2_KEY}}" ubuntu@"${{secrets.EC2_IP}}"
+          ssh -i ${{secrets.EC2_KEY}} ubuntu@${{secrets.EC2_IP}}
           cd ~/app/discord_bot
           docker-compose down
           git pull
