@@ -230,7 +230,7 @@ async def color(ctx, selection=None, *args, **kwargs):
     current = [role for role in ctx.author.roles if role.name in ROLE_COLORS]
     if type(selection) is str and selection.lower() == "random":
         new_color = await set_member_color(ctx.author, ctx.guild)
-        embed = Embed(title=f"{ctx.author} is now", description=new_color.mention)
+        embed = Embed(title=f"{ctx.author.name} is now", description=new_color.mention)
         embed.set_thumbnail(url=ctx.author.avatar_url)
         await ctx.send(embed=embed)
         return None
@@ -257,7 +257,7 @@ async def color(ctx, selection=None, *args, **kwargs):
         await ctx.author.remove_roles(*current)
         await ctx.author.add_roles(selected_color)
 
-        embed = Embed(title=f"{ctx.author} is now", description=selected_color.mention)
+        embed = Embed(title=f"{ctx.author.name} is now", description=selected_color.mention)
         embed.set_thumbnail(url=ctx.author.avatar_url)
         await ctx.send(embed=embed)
 
