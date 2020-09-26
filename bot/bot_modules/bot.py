@@ -576,8 +576,8 @@ async def purge_bot(ctx, amount, *args, **kwargs):
 @advanced_args_function(bot)
 @log_call_function
 @advanced_perm_check_function(is_not_priv)
-@my_help.help_decorator("Interactive maze game. No borders on sides. Restart map if needed", "(<height>)", menu="fun")
-async def slipper(ctx, dimy=10, dimx=6, *args, **kwargs):
+@my_help.help_decorator("Interactive maze game. No borders on sides. Restart map if needed", "(<height>)", menu="games")
+async def maze(ctx, dimy=10, dimx=6, *args, **kwargs):
     """
 
     Args:
@@ -977,11 +977,11 @@ def get_help_embed(cmd_key=None, full=None, page=0):
     return content, embed, is_menu, menu_size, pages_count, this_page
 
 
-@bot.command()
+@bot.command(aliases=['sweeper'])
 @delete_call
 @log_call_function
-@my_help.help_decorator("Sweeper game, don't blow it up", "(<size>) (<bombs>)")
-async def sweeper(ctx, *args):
+@my_help.help_decorator("Mines game, don't blow it up", "(<size>) (<bombs>)", aliases=['sweeper'], menu='games')
+async def mines(ctx, *args):
     """
     Generates sweeper game, !sweeper (size) (bombs)
     Args:
