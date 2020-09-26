@@ -223,7 +223,7 @@ async def color(ctx, selection=None, *args, **kwargs):
 
         desc = " ".join([role.mention for role in roles_on_server])
         embed = Embed(title="Select one of colors:", description=desc)
-        embed.set_author(name="!color cyan")
+        embed.set_author(name="!color color  or  !color random")
         await ctx.send(embed=embed)
         return None
 
@@ -232,7 +232,7 @@ async def color(ctx, selection=None, *args, **kwargs):
         new_color = await set_member_color(ctx.author, ctx.guild)
         embed = Embed(title=f"{ctx.author.name} is now", description=new_color.mention)
         embed.set_thumbnail(url=ctx.author.avatar_url)
-        await ctx.send(embed=embed)
+        await ctx.send(embed=embed, delete_after=240)
         return None
 
     selected_list = [role for role in ctx.guild.roles if selection.lower() in role.name.lower()]
@@ -259,7 +259,7 @@ async def color(ctx, selection=None, *args, **kwargs):
 
         embed = Embed(title=f"{ctx.author.name} is now", description=selected_color.mention)
         embed.set_thumbnail(url=ctx.author.avatar_url)
-        await ctx.send(embed=embed)
+        await ctx.send(embed=embed, delete_after=240)
 
 
 async def set_member_color(member, guild, selection=None):
