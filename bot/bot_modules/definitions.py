@@ -150,8 +150,11 @@ ROLE_COLORS = {'Blue': (50, 150, 255),
                'Black': (1, 1, 1),
                'Gray': (150, 160, 170),
                'White': (255, 255, 255),
-               'Invisible': (50, 50, 60),
+
                }
+SPECIAL_ROLE_COLORS = {
+        'Invisible': (50, 50, 60),
+}
 
 RUDE = ['Why you bother me {0}? {emote}',
         'Stop it {0}. {emote}',

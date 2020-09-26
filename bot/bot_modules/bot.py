@@ -425,6 +425,11 @@ async def on_command_error(ctx, command_error):
         emoji = "❌"
         await ctx.channel.send(f"{text_error} '!{invoked}'")
 
+    elif text_error.startswith("Command raised an exception: Forbidden: 403 Forbidden"):
+        logger.warning(f"Bot is missing permissions: '{text_error}', server: '{server}', '!{invoked}'")
+        emoji = "❌"
+        await ctx.channel.send(f"Bot is missing permissions: '!{invoked}'")
+
     elif "required positional argument" in text_error:
         emoji = "❌"
         await ctx.channel.send(f"Some arguments are missing: '{command_error.original}'")
@@ -448,6 +453,8 @@ async def on_command_error(ctx, command_error):
 @bot.event
 async def on_member_join(member):
     logger.info(f"{member} has joined {member.guild} ({member.guild.id})")
+
+    await set_member_color(member, member.guild)
 
     color = Colour.from_rgb(10, 180, 50)
     embed = Embed(colour=color)

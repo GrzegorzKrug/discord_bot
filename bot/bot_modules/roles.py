@@ -7,6 +7,7 @@ from ast import literal_eval
 from discord.ext import commands
 from discord import Embed
 
+import random
 import numpy as np
 
 
@@ -16,7 +17,7 @@ import numpy as np
 @advanced_perm_check_function(restrictions=is_not_priv)
 @approve_fun
 @log_call_function
-@my_help.help_decorator("Create basic roles.py with colors", menu="role")
+@my_help.help_decorator("Create basic roles with colors", menu="role")
 async def create_color_roles(ctx, *args, **kwargs):
     guild = ctx.message.guild
     roles = ROLE_COLORS.copy()
@@ -25,7 +26,7 @@ async def create_color_roles(ctx, *args, **kwargs):
     params = {'mentionable': False, 'hoist': False}
     for name, color in roles.items():
         if name not in dc:
-            logger.debug("Creating role: {}")
+            logger.debug(f"Creating role: {name}")
             await guild.create_role(name=name, color=Colour.from_rgb(*color), **params)
         else:
             logger.debug(f"Editing role: {name}")
@@ -34,32 +35,6 @@ async def create_color_roles(ctx, *args, **kwargs):
 
     debug_colors = {role.name: role.mention for role in all_roles if role.name in roles}
     await ctx.send(' '.join(debug_colors[role] for role in roles))
-
-
-# @bot.command()
-# @commands.has_permissions(manage_roles=True)
-# @advanced_args_function(bot)
-# @advanced_perm_check_function(restrictions=is_not_priv)
-# @approve_fun
-# @log_call_function
-# @my_help.help_decorator("Create basic roles.py with colors", menu="role")
-# async def set_roles_colors(ctx, *args, **kwargs):
-#     guild = ctx.message.guild
-#
-#     dc = {role.name: role for role in guild.roles}
-#     params = {'mentionable': False, 'hoist': False}
-#
-#     for role in ctx.mentions:
-#         if role.name not in dc:
-#             logger.debug("Creating role: {}")
-#             await guild.create_role(name=name, color=Colour.from_rgb(*color), **params)
-#         else:
-#             logger.debug(f"Editing role: {name}")
-#             await dc[name].edit(color=Colour.from_rgb(*color), **params)
-#     all_roles = ctx.guild.roles
-#
-#     debug_colors = {role.name: role.mention for role in all_roles if role.name in roles}
-#     await ctx.send(' '.join(debug_colors[role] for role in roles))
 
 
 @bot.command()
@@ -187,7 +162,7 @@ async def create_color_levels(ctx, name, end_level, level_step, *args, start, st
 @advanced_perm_check_function(restrictions=is_not_priv)
 @log_call_function
 @my_help.help_decorator("Removes all roles added with smooth color", menu="role")
-async def purge_yasiu_roles(ctx, *args, dry=False, **kwargs):
+async def remove_yasiu_roles(ctx, *args, dry=False, **kwargs):
     count = 0
 
     for role in ctx.guild.roles:
@@ -204,3 +179,127 @@ async def purge_yasiu_roles(ctx, *args, dry=False, **kwargs):
         await ctx.send(text)
     else:
         await ctx.send(f"This will remove {count} roles")
+
+
+@bot.command()
+@commands.has_permissions(manage_roles=True)
+@advanced_args_function(bot)
+@advanced_perm_check_function(restrictions=is_not_priv)
+@log_call_function
+@my_help.help_decorator("Removes all color roles made by YasiuBot", menu="role")
+async def remove_yasiu_colors(ctx, *args, dry=False, **kwargs):
+    count = 0
+
+    for role in ctx.guild.roles:
+        if role.name in ROLE_COLORS:
+            try:
+                if not dry:
+                    await role.delete()
+                count += 1
+            except Exception:
+                pass
+    if not dry:
+        text = f"Removed {count} Yasiu's color roles"
+        logger.info(text + f" at {ctx.guild}")
+        await ctx.send(text)
+    else:
+        await ctx.send(f"This will remove {count} color roles")
+
+
+@bot.command()
+@advanced_args_function(bot)
+@advanced_perm_check_function(restrictions=is_not_priv)
+@log_call_function
+@approve_fun
+@my_help.help_decorator("Select role with color. !color will show you available colors", "<color>|random", menu="role")
+async def color(ctx, selection=None, *args, **kwargs):
+    all_colors = [role for role in ctx.guild.roles if role.name in ROLE_COLORS]
+
+    if not selection:
+        roles_on_server = [role for role in all_colors if role.name not in ctx.guild.roles]
+        if not roles_on_server:
+            await ctx.send("There are no color roles.")
+            return None
+
+        desc = " ".join([role.mention for role in roles_on_server])
+        embed = Embed(title="Select one of colors:", description=desc)
+        embed.set_author(name="!color cyan")
+        await ctx.send(embed=embed)
+        return None
+
+    current = [role for role in ctx.author.roles if role.name in ROLE_COLORS]
+    if type(selection) is str and selection.lower() == "random":
+        new_color = await set_member_color(ctx.author, ctx.guild)
+        embed = Embed(title=f"{ctx.author} is now", description=new_color.mention)
+        embed.set_thumbnail(url=ctx.author.avatar_url)
+        await ctx.send(embed=embed)
+        return None
+
+    selected_list = [role for role in ctx.guild.roles if selection.lower() in role.name.lower()]
+
+    if not selected_list:
+        await ctx.send("Not found matching role")
+        return None
+
+    if len(selected_list) > 1:
+        _selected_list = [role for role in selected_list if role.name.lower() == selection.lower()]
+        if len(_selected_list) == 1:
+            selected_list = _selected_list
+
+    selected_color = selected_list[0]
+
+    if selected_color.name not in ROLE_COLORS:
+        "Color not in ROLE_COLORS"
+        await ctx.send(f"This color is not valid: {selection}")
+
+    else:
+        "Color in ROLE_COLORS"
+        await ctx.author.remove_roles(*current)
+        await ctx.author.add_roles(selected_color)
+
+        embed = Embed(title=f"{ctx.author} is now", description=selected_color.mention)
+        embed.set_thumbnail(url=ctx.author.avatar_url)
+        await ctx.send(embed=embed)
+
+
+async def set_member_color(member, guild, selection=None):
+    """
+    Set member role to color or random
+    Args:
+        member:
+        guild:
+        new_color:
+
+    Returns:
+
+    """
+    current = [role for role in member.roles if role.name in ROLE_COLORS]
+    colors = [role for role in guild.roles if role.name in ROLE_COLORS]
+    if not colors:
+        return None
+
+    n = 0
+    new_color = random.choice(colors)
+
+    if selection:
+        selected_list = [role for role in guild.roles if selection.lower() in role.name.lower()]
+        if selected_list:
+            selected_color = selected_list[0]
+
+            if selected_color.name not in ROLE_COLORS:
+                if current:
+                    await member.remove_roles(*current)
+                await member.add_roles(new_color)
+                return selected_color
+
+    while n < 20:
+        n += 1
+        new_color = random.choice(colors)
+        if new_color not in current:
+            break
+
+    if new_color:
+        if current:
+            await member.remove_roles(*current)
+        await member.add_roles(new_color)
+        return new_color
