@@ -210,7 +210,7 @@ async def remove_yasiu_colors(ctx, *args, dry=False, **kwargs):
 @advanced_args_function(bot)
 @advanced_perm_check_function(restrictions=is_not_priv)
 @log_call_function
-@approve_fun
+@delete_call
 @my_help.help_decorator("Select role with color. !color will show you available colors", "<color>|random", menu="role")
 async def color(ctx, selection=None, *args, **kwargs):
     all_colors = [role for role in ctx.guild.roles if role.name in ROLE_COLORS]

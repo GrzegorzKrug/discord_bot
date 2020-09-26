@@ -530,6 +530,35 @@ async def purge_all(ctx, amount, *args, **kwargs):
 @bot.command()
 @advanced_args_function(bot)
 @log_call_function
+@advanced_perm_check_function([is_server_owner, is_not_priv])
+@log_call_function
+@my_help.help_decorator("Removes <X> messages that are not pinned", "<amount>", menu="moderation")
+async def purge_not_pinned(ctx, amount, *args, **kwargs):
+    """
+    Removes messages in given channel
+    Args:
+        ctx:
+        amount:
+        *args:
+        **kwargs:
+
+    Returns:
+
+    """
+    channel = ctx.channel
+    num = int(amount) + 1  # call is additional
+    if num >= 1:
+        def check_true(message):
+            return not message.pinned
+
+        deleted = await channel.purge(limit=num, check=check_true)
+        logger.info(f"Removed {len(deleted)} messages in {ctx.channel}: {ctx.guild}")
+        await ctx.send(f"♻️ Removed {len(deleted)} messages", delete_after=10)
+
+
+@bot.command()
+@advanced_args_function(bot)
+@log_call_function
 @advanced_perm_check_function(is_server_owner, is_not_priv)
 @delete_call
 @log_call_function
