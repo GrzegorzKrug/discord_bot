@@ -24,7 +24,7 @@ async def create_colors(ctx, key=None, *args, update=False, **kwargs):
     guild = ctx.message.guild
     top = 1
     for role in guild.roles:
-        if role.name == "YasiuTesting":
+        if role.name == "YasiuApp":
             top = role.position - 1
     top = 1 if top < 1 else top
 
