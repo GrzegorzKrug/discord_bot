@@ -804,10 +804,6 @@ async def spam(ctx, num=1, *args, **kwargs):
 @advanced_perm_check_function(restrictions=is_bot_owner)
 async def react(ctx, *args, **kwargs):
     message = await ctx.channel.send("React here")
-    await message.add_reaction("✅")
-    await message.add_reaction("❎")
-    await message.add_reaction("♻")
-    await message.add_reaction("🚫")
     await message.add_reaction("⛔")
     await asyncio.sleep(0.1)
 

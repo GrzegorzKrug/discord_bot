@@ -38,7 +38,8 @@ async def create_colors(ctx, key=None, *args, update=False, **kwargs):
         else:
             update = False
 
-    for name, color in roles.items():
+    for name, value in roles.items():
+        color = value['color']
         if name not in dc:
             logger.debug(f"Creating role: {name}")
             role = await guild.create_role(name=name, color=Colour.from_rgb(*color), **params)
@@ -106,8 +107,8 @@ async def show_roles(ctx, *args, **kwargs):
 @advanced_perm_check_function(restrictions=is_not_priv)
 @log_call_function
 @approve_fun
-@my_help.help_decorator("Create smooth colored roles",
-                        "name max_level step start=(r,g,b) stop=(r,g,b)",
+@my_help.help_decorator("Create smooth colored roles. Name of game, max level, level interval.",
+                        "name max step start=(r,g,b) stop=(r,g,b)",
                         menu="role")
 async def create_color_levels(ctx, name, end_level, level_step, *args, start, stop, dry=False, **kwargs):
     """
@@ -115,12 +116,12 @@ async def create_color_levels(ctx, name, end_level, level_step, *args, start, st
     Use -d or dry to dryrun command
     Args:
         ctx:
-        name:
-        end_level:
-        level_step:
+        name: game name, this will be prefix of game
+        end_level: (max) this will be final top level role
+        level_step: interval for levels
         *args:
-        start:
-        stop:
+        start: (r,g,b), starting color, avoid using space
+        stop: (r,g,b), ending color, avoid using space
         **kwargs:
 
     Returns:
@@ -353,13 +354,14 @@ async def set_member_color(member, guild, selection=None):
 
     if selection:
         selected_list = [role for role in guild.roles if selection.lower() in role.name.lower()]
+        logger.debug(f"list: {selected_list}")
         if selected_list:
             selected_color = selected_list[0]
 
-            if selected_color.name not in ROLE_COLORS:
+            if selected_color.name in ROLE_COLORS:
                 if current:
                     await member.remove_roles(*current)
-                await member.add_roles(new_color)
+                await member.add_roles(selected_color)
                 return selected_color
 
     while n < 20:
@@ -373,3 +375,45 @@ async def set_member_color(member, guild, selection=None):
             await member.remove_roles(*current)
         await member.add_roles(new_color)
         return new_color
+
+
+@bot.command()
+@advanced_args_function(bot)
+@advanced_perm_check_function(is_bot_owner, restrictions=is_not_priv)
+@log_call_function
+@approve_fun
+async def test_reaction(ctx, *args, **kwargs):
+    server_roles = {role.name: role for role in ctx.guild.roles}
+    text = ""
+    for name, value in ROLE_COLORS.items():
+        role = server_roles.get(name, None)
+        if not role:
+            continue
+
+        text += f"\n{value['emoji']} {role.mention}"
+
+    text += f"\n{EMOJIS['repeat_one']} Random"
+
+    embed = Embed(description=text)
+    rolemenu = await ctx.send(embed=embed)
+    emoji_to_name_dict = {item['emoji']: name for name, item in ROLE_COLORS.items()}
+    emoji_to_name_dict.update({EMOJIS['repeat_one']: None})
+
+    for name, value in ROLE_COLORS.items():
+        emoji = value['emoji']
+        if name in ["Lavender", "LtBlue", "Green", "Yellow", "Red", "Black", "Orange"]:
+            continue
+        await rolemenu.add_reaction(emoji)
+    await rolemenu.add_reaction(EMOJIS['repeat_one'])
+
+    def check_if_correct_role(reaction, user):
+        return str(reaction.emoji) in emoji_to_name_dict and reaction.message.id == rolemenu.id and not user.bot
+
+    start = time.time()
+    duration = 0
+    while True:
+        reaction, user = await bot.wait_for("reaction_add", check=check_if_correct_role)
+        selection = emoji_to_name_dict[reaction.emoji]
+
+        out = await set_member_color(user, ctx.guild, selection)
+        await rolemenu.remove_reaction(reaction.emoji, user)

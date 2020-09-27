@@ -1,6 +1,8 @@
 from discord.ext.commands import Bot
-from .loggers import define_logger
 from discord import Colour
+
+from .loggers import define_logger
+from .emojis import *
 
 
 class Help:
@@ -107,63 +109,38 @@ my_help.add_menu("Tarkov", "Tarkov related commands")
 my_help.add_menu("Rest", "No category")
 
 bot = Bot(command_prefix='!', case_insensitive=True, help_command=None)
-EMOJIS = {
-        1: '1️⃣',
-        2: '2️⃣',
-        3: '3️⃣',
-        4: '4️⃣',
-        5: '5️⃣',
-        6: '6️⃣',
-        7: '7️⃣',
-        8: '8️⃣',
-        9: '9️⃣',
-        10: '🔟',
-        'green_x': "❎",
-        "green_ok": "✅",
-        'arrow_left': "⬅️",
-        'arrow_right': "➡️",
-        'arrow_back_left': "↩️",
-        "thinking": "🤔",
-        "question": "❓",
-        "red_x": "❌",
-        "blocked": "⛔",
-
-}
-
-HAPPY_FACES = ["😀", "🙂", "😌", "😍", "🥰", "😜", "😊", "😎", "🤠", "🤗", "🤩", "🥳", "😉", "🤪", "😋", "😛"]
-DISRTUBED_FACES = ["😒", "😞", "😔", "🧐", "😕", "😫", "😩", "🥺", "😤", "😠", "😳", "🤔", "🤫", "😟"]
 
 ROLE_COLORS = {
-        'Lavender': (200, 150, 255),
-        'Purple': (220, 0, 250),
-        'Violet': (160, 0, 255),
-        'DarkBlue': (50, 100, 200),
-        'Blue': (50, 150, 255),
-        'LtBlue': (120, 180, 255),
-        'Cyan': (0, 255, 255),
+        'Lavender': {'color': (200, 150, 255), 'emoji': EMOJIS['purple_heart']},
+        'Purple': {'color': (220, 0, 250), 'emoji': EMOJIS['grapes']},
+        'Violet': {'color': (160, 0, 255), 'emoji': EMOJIS['eggplant']},
+        'DarkBlue': {'color': (50, 100, 200), 'emoji': EMOJIS['whale2']},
+        'Blue': {'color': (50, 150, 255), 'emoji': EMOJIS['fish']},
+        'LtBlue': {'color': (120, 180, 255), 'emoji': EMOJIS['blue_heart']},
+        'Cyan': {'color': (0, 255, 255), 'emoji': EMOJIS['butterfly']},
 
-        'LtGreen': (110, 255, 100),
-        'Green': (0, 255, 0),
-        'Camo': (50, 180, 90),
-        'Neon': (150, 255, 30),
+        'LtGreen': {'color': (110, 255, 100), 'emoji': EMOJIS['sauropod']},
+        'Green': {'color': (0, 255, 0), 'emoji': EMOJIS['green_heart']},
+        'Camo': {'color': (50, 180, 90), 'emoji': EMOJIS['crocodile']},
+        'Neon': {'color': (150, 255, 30), 'emoji': EMOJIS['parrot']},
 
-        'LemonGrass': (215, 255, 100),
-        'LtYellow': (255, 240, 100),
-        'Yellow': (255, 255, 0),
-        'Gold': (241, 196, 15),
-        'Orange': (255, 150, 0),
+        'LemonGrass': {'color': (215, 255, 100), 'emoji': EMOJIS['dragon']},
+        'LtYellow': {'color': (255, 240, 100), 'emoji': EMOJIS['banana']},
+        'Yellow': {'color': (255, 255, 0), 'emoji': EMOJIS['yellow_heart']},
+        'Gold': {'color': (241, 196, 15), 'emoji': EMOJIS['cheese']},
+        'Orange': {'color': (255, 150, 0), 'emoji': EMOJIS['orange_heart']},
 
-        'LtRed': (255, 80, 80),
-        'Red': (255, 0, 0),
-        'Rose': (255, 70, 150),
-        'Pink': (255, 150, 235),
+        'LtRed': {'color': (255, 80, 80), 'emoji': EMOJIS['tulip']},
+        'Red': {'color': (255, 0, 0), 'emoji': EMOJIS['heart']},
+        'Rose': {'color': (255, 70, 150), 'emoji': EMOJIS['rose']},
+        'Pink': {'color': (255, 150, 235), 'emoji': EMOJIS['hibiscus']},
 
-        'Maroon': (170, 0, 50),
-        'BlackBerry': (150, 30, 130),
+        'Maroon': {'color': (170, 0, 50), 'emoji': EMOJIS['maple_leaf']},
+        'BlackBerry': {'color': (150, 30, 130), 'emoji': EMOJIS['fleur_de_lis']},
 
-        'Black': (1, 1, 1),
-        'Gray': (150, 160, 170),
-        'White': (255, 255, 255),
+        'Black': {'color': (1, 1, 1), 'emoji': EMOJIS['black_heart']},
+        'Gray': {'color': (150, 160, 170), 'emoji': EMOJIS['wolf']},
+        'White': {'color': (255, 255, 255), 'emoji': EMOJIS['swan']},
 }
 
 SPECIAL_ROLE_COLORS = {
