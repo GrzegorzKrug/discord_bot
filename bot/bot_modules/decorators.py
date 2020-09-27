@@ -125,7 +125,7 @@ def _get_advanced_args(bot, ctx, *args, bold_name=False, **kwargs):
 def _get_advanced_kwargs(bot, ctx, *args, bold_name=False, **kwargs):
     args = list(args)
     if not kwargs:
-        kwargs = {"force": False, "dry": False, "sudo": False}
+        kwargs = {"force": False, "dry": False, "sudo": False, 'update': False}
 
     good_args = list()
     mention_pattern = re.compile(r"<@[!&]\d+>")
@@ -138,6 +138,9 @@ def _get_advanced_kwargs(bot, ctx, *args, bold_name=False, **kwargs):
         elif arg.startswith("-d") or arg == 'dry':
             "dry run"
             kwargs['dry'] = True
+        elif arg.startswith("-u") or arg == 'update' or arg == "upgrade":
+            "update"
+            kwargs['update'] = True
         elif arg.startswith("-s") or arg.startswith("-a") or arg == 'sudo':
             "sudo or admin"
             kwargs['sudo'] = True

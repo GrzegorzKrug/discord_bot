@@ -430,6 +430,11 @@ async def on_command_error(ctx, command_error):
         emoji = "❌"
         await ctx.channel.send(f"Bot is missing permissions: '!{invoked}'")
 
+    elif text_error.startswith("Command raised an exception: HTTPException: 400 Bad Request (error code: 50013)"):
+        logger.warning(f"Bot is missing permissions: '{text_error}', server: '{server}', '!{invoked}'")
+        emoji = "❌"
+        await ctx.channel.send(f"Bot role is too low to change role: '!{invoked}'")
+
     elif "required positional argument" in text_error:
         emoji = "❌"
         await ctx.channel.send(f"Some arguments are missing: '{command_error.original}'")

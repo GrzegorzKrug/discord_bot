@@ -11,25 +11,43 @@ import random
 import numpy as np
 
 
-@bot.command(aliases=['create_role_colors'])
+@bot.command(aliases=['create_role_colors', 'create_color_roles'])
 @commands.has_permissions(manage_roles=True)
 @advanced_args_function(bot)
 @advanced_perm_check_function(restrictions=is_not_priv)
 @approve_fun
 @log_call_function
-@my_help.help_decorator("Create basic roles with colors", menu="role", aliases=['create_role_colors'])
-async def create_color_roles(ctx, *args, **kwargs):
+@my_help.help_decorator("Create colors that do not exist. Use keyword to update existing.",
+                        '(update)',
+                        menu="role", aliases=['create_role_colors', 'create_color_roles'])
+async def create_colors(ctx, key=None, *args, update=False, **kwargs):
     guild = ctx.message.guild
+    top = 1
+    for role in guild.roles:
+        if role.name == "YasiuTesting":
+            top = role.position - 1
+    top = 1 if top < 1 else top
+
     roles = ROLE_COLORS.copy()
     dc = {role.name: role for role in guild.roles}
-    params = {'mentionable': False, 'hoist': False}
+    params = {'mentionable': False, 'hoist': False, "reason": f"Called by {ctx.author}"}
+
+    if not update:
+        if type(key) is str and ("update" in key.lower() or "refresh" in key.lower()):
+            update = True
+        else:
+            update = False
+
     for name, color in roles.items():
         if name not in dc:
             logger.debug(f"Creating role: {name}")
-            await guild.create_role(name=name, color=Colour.from_rgb(*color), **params)
+            role = await guild.create_role(name=name, color=Colour.from_rgb(*color), **params)
+            await role.edit(position=top)
+            # top += 1
         else:
-            logger.debug(f"Editing role: {name}")
-            await dc[name].edit(color=Colour.from_rgb(*color), **params)
+            if update:
+                logger.debug(f"Editing role: {name}")
+                await dc[name].edit(color=Colour.from_rgb(*color), position=top, **params)
 
     server_roles = ctx.guild.roles
     new_roles_mentions = {role.name: role.mention for role in server_roles if role.name in roles}
@@ -45,8 +63,18 @@ async def create_color_roles(ctx, *args, **kwargs):
 @advanced_perm_check_function(restrictions=is_not_priv)
 @approve_fun
 @log_call_function
-@my_help.help_decorator("Show roles.py on server", menu="role")
-async def roles(ctx, *args, **kwargs):
+@my_help.help_decorator("Show roles on server", menu="role")
+async def show_roles(ctx, *args, **kwargs):
+    """
+    Show all roles on this server.
+    Args:
+        ctx:
+        *args:
+        **kwargs:
+
+    Returns:
+
+    """
     guild = ctx.message.guild
     txt_start = ''
     role_text = []
@@ -78,7 +106,7 @@ async def roles(ctx, *args, **kwargs):
 @advanced_perm_check_function(restrictions=is_not_priv)
 @log_call_function
 @approve_fun
-@my_help.help_decorator("Create smooth colored roles.py",
+@my_help.help_decorator("Create smooth colored roles",
                         "name max_level step start=(r,g,b) stop=(r,g,b)",
                         menu="role")
 async def create_color_levels(ctx, name, end_level, level_step, *args, start, stop, dry=False, **kwargs):
@@ -210,12 +238,48 @@ async def remove_yasiu_colors(ctx, *args, dry=False, **kwargs):
 
 
 @bot.command()
+@commands.has_permissions(manage_roles=True)
+@advanced_args_function(bot)
+@advanced_perm_check_function(restrictions=is_not_priv)
+@log_call_function
+@my_help.help_decorator("Remove roles mentioned in command", menu="role")
+async def remove_role(ctx, *args, dry=False, **kwargs):
+    mentions = ctx.message.role_mentions
+
+    count = 0
+    for role in mentions:
+        try:
+            if not dry:
+                await role.delete()
+            count += 1
+        except Exception:
+            pass
+    if not dry:
+        text = f"Removed {count} roles"
+        logger.info(text + f" at {ctx.guild}")
+        await ctx.send(text)
+    else:
+        await ctx.send(f"This will remove {count} roles")
+
+
+@bot.command()
 @advanced_args_function(bot)
 @advanced_perm_check_function(restrictions=is_not_priv)
 @log_call_function
 @delete_call
 @my_help.help_decorator("Select role with color. !color will show you available colors", "<color>|random", menu="role")
 async def color(ctx, selection=None, *args, **kwargs):
+    """
+    Command for editing member colors.
+    Args:
+        ctx:
+        selection:
+        *args:
+        **kwargs:
+
+    Returns:
+
+    """
     all_colors = [role for role in ctx.guild.roles if role.name in ROLE_COLORS]
 
     if not selection:
