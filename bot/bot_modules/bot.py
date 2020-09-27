@@ -355,7 +355,7 @@ async def on_message(message):
 async def on_ready():
     act = Activity(type=ActivityType.watching, name=" if you need !help")
     await bot.change_presence(status=Status.idle)
-    await _announcement([755715591339376662], "✅ Hey, i'm now online.")
+    await _announcement([SYSTEM_CHANNEL], "✅ Hey, i'm now online.")
     await bot.change_presence(activity=act, status=Status.online)
     logger.warning(f"On ready announcement is constant")
     logger.info(f"Going online as {bot.user.name}")
@@ -365,7 +365,7 @@ async def on_ready():
 async def close():
     act = Activity(name=" to nothing", type=ActivityType.listening)
     await bot.change_presence(activity=act, status=Status.do_not_disturb)
-    await _announcement([755715591339376662], "💤 Sorry, I am going offline.")
+    await _announcement([SYSTEM_CHANNEL], "💤 Sorry, I am going offline.")
 
     await bot.change_presence(activity=None, status=Status.offline)
 
@@ -1346,7 +1346,7 @@ async def _user_feedback(ctx, *args, text, **kwargs):
     Returns:
 
     """
-    feedback_channel = 758358711382573056 if bot.user.name == "YasiuBot" else 757975910233145448
+    feedback_channel = FEEDBACK_CHANNAEL
     invoked = ctx.invoked_with
     if invoked == "feedback":
         text = f"{ctx.author}, {ctx.guild}, has sent feedback: {text}"

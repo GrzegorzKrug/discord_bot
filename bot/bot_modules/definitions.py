@@ -179,6 +179,10 @@ RUDE = ['Why you bother me {0}? {emote}',
 
 GLOBAL_SERVERS = {}
 YOUSHISU_ID = 147795752943353856
+
+SYSTEM_CHANNEL = 759782856980824094
+FEEDBACK_CHANNAEL = 759782801792434237
+
 BOT_URL = r"https://discord.com/api/oauth2/authorize?client_id=750688123008319628&permissions=470019283&scope=bot"
 BOT_TEST_URL = r"https://discord.com/api/oauth2/authorize?client_id=757339370368794696&permissions=470019283&scope=bot"
 BOT_COLOR = Colour.from_rgb(30, 255, 0)
