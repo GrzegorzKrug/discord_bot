@@ -11,17 +11,16 @@ import random
 import numpy as np
 
 
-@bot.command()
+@bot.command(aliases=['create_role_colors'])
 @commands.has_permissions(manage_roles=True)
 @advanced_args_function(bot)
 @advanced_perm_check_function(restrictions=is_not_priv)
 @approve_fun
 @log_call_function
-@my_help.help_decorator("Create basic roles with colors", menu="role")
+@my_help.help_decorator("Create basic roles with colors", menu="role", aliases=['create_role_colors'])
 async def create_color_roles(ctx, *args, **kwargs):
     guild = ctx.message.guild
     roles = ROLE_COLORS.copy()
-
     dc = {role.name: role for role in guild.roles}
     params = {'mentionable': False, 'hoist': False}
     for name, color in roles.items():
@@ -31,10 +30,14 @@ async def create_color_roles(ctx, *args, **kwargs):
         else:
             logger.debug(f"Editing role: {name}")
             await dc[name].edit(color=Colour.from_rgb(*color), **params)
-    all_roles = ctx.guild.roles
 
-    debug_colors = {role.name: role.mention for role in all_roles if role.name in roles}
-    await ctx.send(' '.join(debug_colors[role] for role in roles))
+    server_roles = ctx.guild.roles
+    new_roles_mentions = {role.name: role.mention for role in server_roles if role.name in roles}
+    roles_text_in_order = ' '.join(new_roles_mentions[role] for role in roles)
+
+    embed = Embed(title="Colors:", description=roles_text_in_order)
+    embed.set_author(name="!color")
+    await ctx.send(embed=embed)
 
 
 @bot.command()
@@ -218,17 +221,20 @@ async def color(ctx, selection=None, *args, **kwargs):
     if not selection:
         roles_on_server = [role for role in all_colors if role.name not in ctx.guild.roles]
         if not roles_on_server:
-            await ctx.send("There are no color roles.")
+            await ctx.send("There are no color roles on servers.", delete_after=60)
             return None
 
-        desc = " ".join([role.mention for role in roles_on_server])
-        embed = Embed(title="Select one of colors:", description=desc)
+        server_roles = ctx.guild.roles
+        new_roles_mentions = {role.name: role.mention for role in server_roles if role.name in ROLE_COLORS}
+        roles_text_in_order = ' '.join([new_roles_mentions.get(role, '') for role in ROLE_COLORS])
+
+        embed = Embed(title=f"Select one of colors {len(new_roles_mentions)}:", description=roles_text_in_order)
         embed.set_author(name="!color color  or  !color random")
         await ctx.send(embed=embed)
         return None
 
     current = [role for role in ctx.author.roles if role.name in ROLE_COLORS]
-    if type(selection) is str and selection.lower() == "random":
+    if type(selection) is str and selection.lower() == "random" or "rand" in selection.lower():
         new_color = await set_member_color(ctx.author, ctx.guild)
         embed = Embed(title=f"{ctx.author.name} is now", description=new_color.mention)
         embed.set_thumbnail(url=ctx.author.avatar_url)
@@ -238,7 +244,7 @@ async def color(ctx, selection=None, *args, **kwargs):
     selected_list = [role for role in ctx.guild.roles if selection.lower() in role.name.lower()]
 
     if not selected_list:
-        await ctx.send("Not found matching role")
+        await ctx.send("Not found matching role", delete_after=60)
         return None
 
     if len(selected_list) > 1:
@@ -250,7 +256,7 @@ async def color(ctx, selection=None, *args, **kwargs):
 
     if selected_color.name not in ROLE_COLORS:
         "Color not in ROLE_COLORS"
-        await ctx.send(f"This color is not valid: {selection}")
+        await ctx.send(f"This color is not valid: {selection}", delete_after=60)
 
     else:
         "Color in ROLE_COLORS"

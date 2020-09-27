@@ -133,25 +133,39 @@ EMOJIS = {
 HAPPY_FACES = ["😀", "🙂", "😌", "😍", "🥰", "😜", "😊", "😎", "🤠", "🤗", "🤩", "🥳", "😉", "🤪", "😋", "😛"]
 DISRTUBED_FACES = ["😒", "😞", "😔", "🧐", "😕", "😫", "😩", "🥺", "😤", "😠", "😳", "🤔", "🤫", "😟"]
 
-ROLE_COLORS = {'Blue': (50, 150, 255),
-               'LtBlue': (80, 180, 255),
-               'Cyan': (0, 255, 255),
-               'Green': (0, 255, 0),
-               'Camo': (50, 180, 90),
-               'Neon': (180, 255, 50),
-               'Gold': (255, 240, 100),
-               'Yellow': (255, 255, 0),
-               'Orange': (255, 150, 0),
-               'Pink': (255, 150, 255),
-               'Rose': (255, 70, 150),
-               'BlackBerry': (160, 50, 100),
-               'Purple': (230, 0, 200),
-               'Red': (255, 0, 0),
-               'Black': (1, 1, 1),
-               'Gray': (150, 160, 170),
-               'White': (255, 255, 255),
+ROLE_COLORS = {
+        'Lavender': (200, 150, 255),
+        'Purple': (220, 0, 250),
+        'Violet': (160, 0, 255),
+        'Steel': (50, 100, 200),
+        'Blue': (50, 150, 255),
+        'LtBlue': (120, 180, 255),
+        'Cyan': (0, 255, 255),
 
-               }
+        'LtGreen': (50, 255, 120),
+        'Green': (0, 255, 0),
+        'LemonGrass': (80, 255, 100),
+        'Camo': (50, 180, 90),
+        'Neon': (180, 255, 50),
+
+        'LtYellow': (255, 240, 100),
+        'Yellow': (255, 255, 0),
+        'Gold': (241, 196, 15),
+        'Orange': (255, 150, 0),
+
+        'LtRed': (255, 80, 80),
+        'Red': (255, 0, 0),
+        'Rose': (255, 70, 150),
+        'Pink': (255, 150, 235),
+
+        'Maroon': (170, 0, 50),
+        'BlackBerry': (150, 30, 130),
+
+        'Black': (1, 1, 1),
+        'Gray': (150, 160, 170),
+        'White': (255, 255, 255),
+}
+
 SPECIAL_ROLE_COLORS = {
         'Invisible': (50, 50, 60),
 }
@@ -163,7 +177,7 @@ RUDE = ['Why you bother me {0}? {emote}',
         "Use commands if you need something {0}. {emote}",
         "Staph it. Get some help {0}. {emote}"]
 
-GLOBAL_SERVERS = {755065402777796663}
+GLOBAL_SERVERS = {}
 YOUSHISU_ID = 147795752943353856
 BOT_URL = r"https://discord.com/api/oauth2/authorize?client_id=750688123008319628&permissions=470019283&scope=bot"
 BOT_TEST_URL = r"https://discord.com/api/oauth2/authorize?client_id=757339370368794696&permissions=470019283&scope=bot"
