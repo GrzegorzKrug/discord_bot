@@ -335,17 +335,17 @@ async def on_message(message):
 
         await ch.send(text.format(message.author.name, emote=emote))
 
-    servers = GLOBAL_SERVERS.copy()
-    if not message.content.startswith("!") and message.channel.id in servers:
-        logger.warning(f"Fixed worldwide chat")
-        messenger.info(
-                f"world_wide message:\n"
-                f"{message.author}  from chid: {message.channel.id}, {message.guild}\n"
-                f"'{message.content}'")
-        servers.remove(message.channel.id)
-        text, embed = world_wide_format(message, msg_type="normal")
-        await _announcement(chids=servers, text=text, embed=embed)
-        return None
+    # servers = GLOBAL_SERVERS.copy()
+    # if not message.content.startswith("!") and message.channel.id in servers:
+    #     logger.warning(f"Fixed worldwide chat")
+    #     messenger.info(
+    #             f"world_wide message:\n"
+    #             f"{message.author}  from chid: {message.channel.id}, {message.guild}\n"
+    #             f"'{message.content}'")
+    #     servers.remove(message.channel.id)
+    #     text, embed = world_wide_format(message, msg_type="normal")
+    #     await _announcement(chids=servers, text=text, embed=embed)
+    #     return None
 
     else:
         await bot.process_commands(message)
