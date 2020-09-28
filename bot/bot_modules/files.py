@@ -62,6 +62,7 @@ async def logs(ctx, key=None, val=None, *args, **kwargs):
 
         elif val == "all":
             files = all_files
+            raise NotImplementedError
         else:
             await user.send("Select old or all")
             return None
