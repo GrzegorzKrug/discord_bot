@@ -303,7 +303,8 @@ def _check_advanced_perm(ctx, *args, rule_sets=None, restrictions=None, sudo=Fal
                 all_errors += errors
 
         if len(all_errors) > 0:
-            return False, False
+            raise all_errors[0]
+            # return False, all_errors[0].args
         else:
             return True, force
 
@@ -327,7 +328,8 @@ def advanced_perm_check_function(*rules_sets, restrictions=None):
                 output = await coro(*args, force=force, **kwargs)
                 return output
             else:
-                raise CommandError("No permission")
+                logger.error(f"Permission check failed! Exceptions should be raised earlier!")
+                raise CommandError("Permission check failed.")
 
         f.__name__ = coro.__name__
         f.__doc__ = coro.__doc__

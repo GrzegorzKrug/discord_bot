@@ -13,11 +13,12 @@ import re
 from discord.ext import tasks
 from discord import Activity, ActivityType, Status, Embed, Colour
 
-from .decorators import *
 from .permissions import *
 from .definitions import *
-
+from .decorators import *
+from .files import *
 from .roles import *
+
 from .eft import EFTCog
 
 
@@ -404,7 +405,7 @@ async def on_command_error(ctx, command_error):
     if text_error.startswith("The check functions for command") or text_error.startswith("No permission"):
         logger.warning(f"No permission: '{text}', server: '{server}'")
         emoji = "⛔"
-        await ctx.channel.send(f"Some permissions do not allow it to run here '!{invoked}'")
+        await ctx.channel.send(f"Some permissions do not allow it to run here, '{text_error}' '!{invoked}'")
 
     elif text_error.endswith("is not found"):
         logger.warning(f"Command not found: '{text}', server: '{server}'")
@@ -429,6 +430,11 @@ async def on_command_error(ctx, command_error):
         logger.warning(f"Bot is missing permissions: '{text_error}', server: '{server}', '!{invoked}'")
         emoji = "❌"
         await ctx.channel.send(f"Bot is missing permissions: '!{invoked}'")
+
+    elif text_error.startswith("Command raised an exception: NotImplementedError"):
+        logger.warning(f"Not implemented feature: '{text_error}', server: '{server}', '!{invoked}'")
+        emoji = "❌"
+        await ctx.channel.send(f"Not implemented feature: '{text}'")
 
     elif text_error.startswith("Command raised an exception: HTTPException: 400 Bad Request (error code: 50013)"):
         logger.warning(f"Bot is missing permissions: '{text_error}', server: '{server}', '!{invoked}'")

@@ -115,8 +115,8 @@ ROLE_COLORS = {
         'Purple': {'color': (220, 0, 250), 'emoji': EMOJIS['grapes']},
         'Violet': {'color': (160, 0, 255), 'emoji': EMOJIS['eggplant']},
         'DarkBlue': {'color': (50, 100, 200), 'emoji': EMOJIS['whale2']},
-        'Blue': {'color': (50, 150, 255), 'emoji': EMOJIS['fish']},
-        'LtBlue': {'color': (120, 180, 255), 'emoji': EMOJIS['blue_heart']},
+        'Blue': {'color': (50, 150, 255), 'emoji': EMOJIS['blue_heart']},
+        'LtBlue': {'color': (120, 180, 255), 'emoji': EMOJIS['fish']},
         'Cyan': {'color': (0, 255, 255), 'emoji': EMOJIS['butterfly']},
 
         'LtGreen': {'color': (110, 255, 100), 'emoji': EMOJIS['sauropod']},
