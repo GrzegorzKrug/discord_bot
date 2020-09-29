@@ -100,16 +100,57 @@ class Help:
 
 
 my_help = Help()
-my_help.add_menu("Bot", "About bot")
+
 my_help.add_menu("Role", "Manage roles")
 my_help.add_menu("Chat", "Global Chat")
 my_help.add_menu("Moderation", "Delete messages")
 my_help.add_menu("Fun", "Have fun")
 my_help.add_menu("Tarkov", "Tarkov related commands")
 my_help.add_menu("Rest", "No category")
+my_help.add_menu("Bot", "About bot")
+
+
+class Config:
+    def __init__(self):
+        self.color_pairs = Pair()
+
+    def add_rolemenu_color_pair(self, new_pair):
+        self.color_pairs.add(new_pair)
+
+    def check_if_in_colors(self, id):
+        return self.color_pairs.check_if_in(id)
+
+
+class Pair:
+    def __init__(self):
+        self.pairs = dict()
+
+    def add(self, new_pair):
+        assert len(new_pair) == 2, "New pair should have exactly 2 elements"
+        self.pairs.update({new_pair[0]: new_pair[1]})
+        self.pairs.update({new_pair[1]: new_pair[0]})
+
+    def get_pair(self, id):
+        return id, self.pairs.get(id, None)
+
+    def check_if_in(self, id):
+        """
+        Checks in which message is pair
+        Args:
+            id:
+
+        Returns:
+
+        """
+        return id in self.pairs
+
+    def __str__(self):
+        return str(self.pairs.items())
+
+
+my_config = Config()
 
 bot = Bot(command_prefix='!', case_insensitive=True, help_command=None)
-
 ROLE_COLORS = {
         'Lavender': {'color': (200, 150, 255), 'emoji': EMOJIS['purple_heart']},
         'Purple': {'color': (220, 0, 250), 'emoji': EMOJIS['grapes']},

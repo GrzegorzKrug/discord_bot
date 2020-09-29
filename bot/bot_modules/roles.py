@@ -9,6 +9,7 @@ from discord import Embed
 
 import random
 import numpy as np
+import asyncio
 
 
 @bot.command(aliases=['create_role_colors', 'create_color_roles'])
@@ -298,9 +299,8 @@ async def color(ctx, selection=None, *args, **kwargs):
         await ctx.send(embed=embed)
         return None
 
-    current = [role for role in ctx.author.roles if role.name in ROLE_COLORS]
     if type(selection) is str and selection.lower() == "random" or "rand" in selection.lower():
-        new_color = await set_member_color(ctx.author, ctx.guild)
+        new_color = await set_member_single_role(ctx.author, ctx.guild, ROLE_COLORS.keys(), allow_random=True)
         embed = Embed(title=f"{ctx.author.name} is now", description=new_color.mention)
         embed.set_thumbnail(url=ctx.author.avatar_url)
         await ctx.send(embed=embed, delete_after=240)
@@ -312,69 +312,100 @@ async def color(ctx, selection=None, *args, **kwargs):
         await ctx.send("Not found matching role", delete_after=60)
         return None
 
-    if len(selected_list) > 1:
-        _selected_list = [role for role in selected_list if role.name.lower() == selection.lower()]
-        if len(_selected_list) == 1:
-            selected_list = _selected_list
-
-    selected_color = selected_list[0]
-
-    if selected_color.name not in ROLE_COLORS:
+    new_color = await set_member_single_role(ctx.author, ctx.guild, ROLE_COLORS.keys(), selection)
+    if not new_color:
         "Color not in ROLE_COLORS"
         await ctx.send(f"This color is not valid: {selection}", delete_after=60)
 
     else:
         "Color in ROLE_COLORS"
-        await ctx.author.remove_roles(*current)
-        await ctx.author.add_roles(selected_color)
-
-        embed = Embed(title=f"{ctx.author.name} is now", description=selected_color.mention)
+        embed = Embed(title=f"{ctx.author.name} is now", description=new_color.mention)
         embed.set_thumbnail(url=ctx.author.avatar_url)
         await ctx.send(embed=embed, delete_after=240)
 
 
-async def set_member_color(member, guild, selection=None):
+async def set_member_single_role(member, guild, roles_names,
+                                 selection_text=None,
+                                 allow_random=False,
+                                 find_in_name=True):
     """
     Set member role to color or random
     Args:
         member:
         guild:
-        new_color:
+        roles_names:
+        selection_text: find role by its name, if more than 1, first role is selected from exact list if possible
+        allow_random: Select random role if nothing matches
+        find_in_name: Partial name finding
 
     Returns:
 
     """
-    current = [role for role in member.roles if role.name in ROLE_COLORS]
-    colors = [role for role in guild.roles if role.name in ROLE_COLORS]
-    if not colors:
+    current = set(role for role in member.roles if role.name in roles_names and role.name != "@everyone")
+    available_roles = [role for role in guild.roles if role.name in roles_names and role.name != "@everyone"]
+
+    if not available_roles:
+        logger.debug(f"no available roles")
         return None
 
-    n = 0
-    new_color = random.choice(colors)
+    if selection_text:
+        if find_in_name:
+            matching_list = [role for role in available_roles if selection_text.lower() in role.name.lower()]
+        else:
+            matching_list = []
+        exact_list = [role for role in available_roles if selection_text.lower() == role.name.lower()]
 
-    if selection:
-        selected_list = [role for role in guild.roles if selection.lower() in role.name.lower()]
-        logger.debug(f"list: {selected_list}")
-        if selected_list:
-            selected_color = selected_list[0]
+        if not matching_list:
+            logger.debug(f"not matching list")
+            return None
 
-            if selected_color.name in ROLE_COLORS:
-                if current:
-                    await member.remove_roles(*current)
-                await member.add_roles(selected_color)
-                return selected_color
+        if find_in_name and len(matching_list) == 1:
+            selected_role = matching_list[0]
+        elif find_in_name and len(matching_list) > 1:
+            try:
+                selected_role = exact_list[0]
+            except IndexError:
+                selected_role = matching_list[0]
+        elif exact_list:
+            selected_role = exact_list[0]
+        else:
+            selected_role = None
 
-    while n < 20:
-        n += 1
-        new_color = random.choice(colors)
-        if new_color not in current:
-            break
+        if selected_role:
+            try:
+                current.remove(selected_role)
+            except KeyError:
+                pass
 
-    if new_color:
-        if current:
-            await member.remove_roles(*current)
-        await member.add_roles(new_color)
-        return new_color
+            await member.add_roles(selected_role)
+
+            if current:
+                await member.remove_roles(*current)
+            return selected_role
+        else:
+            logger.debug(f"No role was selected")
+
+    if allow_random and available_roles:
+        n = 0
+        new_role = random.choice(available_roles)
+
+        while n < 10:
+            n += 1
+            new_role = random.choice(available_roles)
+            if new_role not in current:
+                break
+
+        if new_role:
+            try:
+                current.remove(new_role)
+            except KeyError:
+                pass
+
+            await member.add_roles(new_role)
+
+            if current:
+                await member.remove_roles(*current)
+            return new_role
 
 
 @bot.command()
@@ -384,36 +415,150 @@ async def set_member_color(member, guild, selection=None):
 @approve_fun
 async def test_reaction(ctx, *args, **kwargs):
     server_roles = {role.name: role for role in ctx.guild.roles}
-    text = ""
+    text_half = ""
+    text_end = ""
+    pivot = 'LemonGrass'
+    end_half = False
+
+    "Send Embed Messages"
     for name, value in ROLE_COLORS.items():
         role = server_roles.get(name, None)
         if not role:
             continue
 
-        text += f"\n{value['emoji']} {role.mention}"
+        if role.name == pivot:
+            text_half += f"\n{value['emoji']} {role.mention}"
+            end_half = True
+        elif not end_half:
+            text_half += f"\n{value['emoji']} {role.mention}"
+        else:
+            text_end += f"\n{value['emoji']} {role.mention}"
 
-    text += f"\n{EMOJIS['repeat_one']} Random"
+    text_end += f"\n{EMOJIS['repeat_one']} Random"
 
-    embed = Embed(description=text)
-    rolemenu = await ctx.send(embed=embed)
-    emoji_to_name_dict = {item['emoji']: name for name, item in ROLE_COLORS.items()}
-    emoji_to_name_dict.update({EMOJIS['repeat_one']: None})
+    embed_half = Embed(description=text_half)
+    embed_end = Embed(description=text_end)
+    rolemenu_half = await ctx.send(embed=embed_half)
+    rolemenu_end = await ctx.send(embed=embed_end)
 
+    role_menu_pair = (rolemenu_half.id, rolemenu_end.id)
+    my_config.add_rolemenu_color_pair(role_menu_pair)
+
+    "Add Reactions"
+    end_half = False
     for name, value in ROLE_COLORS.items():
         emoji = value['emoji']
-        if name in ["Lavender", "LtBlue", "Green", "Yellow", "Red", "Black", "Orange"]:
-            continue
-        await rolemenu.add_reaction(emoji)
-    await rolemenu.add_reaction(EMOJIS['repeat_one'])
+        if name == pivot:
+            end_half = True
+            await rolemenu_half.add_reaction(emoji)
+        elif not end_half:
+            await rolemenu_half.add_reaction(emoji)
+        else:
+            await rolemenu_end.add_reaction(emoji)
+        await asyncio.sleep(0.02)
+    await rolemenu_end.add_reaction(EMOJIS['repeat_one'])
 
-    def check_if_correct_role(reaction, user):
-        return str(reaction.emoji) in emoji_to_name_dict and reaction.message.id == rolemenu.id and not user.bot
 
-    start = time.time()
-    duration = 0
-    while True:
-        reaction, user = await bot.wait_for("reaction_add", check=check_if_correct_role)
-        selection = emoji_to_name_dict[reaction.emoji]
+async def check_and_assign_reaction_color_role(member, message_id, channel_id, guild, emoji):
+    if member.bot:
+        return None
 
-        out = await set_member_color(user, ctx.guild, selection)
-        await rolemenu.remove_reaction(reaction.emoji, user)
+    valid = my_config.color_pairs.check_if_in(message_id)
+    if not valid:
+        return None
+
+    emoji_to_name_dict = {item['emoji']: name for name, item in ROLE_COLORS.items()}
+    emoji_to_name_dict.update({EMOJIS['repeat_one']: "Rand"})
+
+    if emoji not in emoji_to_name_dict:
+        return None
+
+    selection = emoji_to_name_dict.get(emoji, None)
+
+    if not selection:
+        return None
+
+    coro_name = f"{guild.name}-color-{member.name}"
+    loop = asyncio.get_event_loop()
+    await asyncio.sleep(0.1)
+
+    for task in asyncio.all_tasks():
+        if task.get_name() == coro_name:
+            task.cancel()
+
+    key, value = my_config.color_pairs.get_pair(message_id)
+
+    coro = clear_reactions(channel_id, [key, value], set(emoji_to_name_dict.keys()), emoji, member)
+    task = loop.create_task(coro, name=coro_name)
+
+    color = await set_member_single_role(member, guild, ROLE_COLORS.keys(), selection)
+
+    while not task.done():
+        await asyncio.sleep(1)
+        if task.cancelled():
+            return None
+    "Make sure that user did not spammed emojis"
+    color = await set_member_single_role(member, guild, ROLE_COLORS.keys(), selection)
+    return color
+
+
+async def clear_reactions(channel_id, messages_ids, emojis_to_remove, skip_emojis, member):
+    """
+    Universal function, to clear emojis from selected user.
+    Args:
+        channel_id:
+        messages_ids:
+        emojis_to_remove:
+        skip_emojis:
+        member:
+
+    Returns:
+
+    """
+    "Create sets, to operate faster"
+
+    messages_ids = set(messages_ids)
+    emojis_to_remove = set(emojis_to_remove)
+    skip_emojis = set(skip_emojis)
+    channel = bot.get_channel(channel_id)
+    for msg_id in messages_ids:
+        message = await channel.fetch_message(msg_id)
+        for reaction in message.reactions:
+            await asyncio.sleep(0.01)
+            if str(reaction.emoji) in skip_emojis:
+                continue
+
+            if str(reaction.emoji) not in emojis_to_remove:
+                continue
+
+            users = await reaction.users().flatten()
+            this_user = [user for user in users if user.id == member.id]
+            if this_user:
+                await asyncio.sleep(0.01)
+                await message.remove_reaction(reaction.emoji, member)
+
+
+@bot.event
+async def on_raw_reaction_add(payload):
+    message_id = payload.message_id
+    user_id = payload.user_id
+    channel_id = payload.channel_id
+    guild_id = payload.guild_id
+    emoji = payload.emoji.name
+    member = payload.member
+    try:
+        guild = member.guild
+    except AttributeError as err:
+        return None
+
+    await check_and_assign_reaction_color_role(member, message_id, channel_id, member.guild, emoji)
+
+
+@bot.command()
+@advanced_args_function(bot)
+@advanced_perm_check_function(restrictions=[is_not_priv, is_bot_owner])
+@log_call_function
+@approve_fun
+async def showconfig(ctx, *args, **kwargs):
+    text = my_config.color_pairs.__str__()
+    await ctx.send(text)
