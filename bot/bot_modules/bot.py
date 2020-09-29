@@ -539,7 +539,7 @@ async def purge_all(ctx, amount, *args, **kwargs):
         await ctx.send(f"♻️ Removed {len(deleted)} messages", delete_after=10)
 
 
-@bot.command()
+@bot.command(aliases=['purgenotpinned', 'purge_not_pined'])
 @advanced_args_function(bot)
 @log_call_function
 @advanced_perm_check_function([is_server_owner, is_not_priv])
