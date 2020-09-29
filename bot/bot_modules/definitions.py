@@ -4,6 +4,13 @@ from discord import Colour
 from .loggers import define_logger
 from .emojis import *
 
+import shelve
+import os
+
+logger = define_logger("Bot", path='..', file_lvl="INFO", stream_lvl="DEBUG", extra_debug="Debug.log")
+messenger = define_logger("Messenger", path='..', file_lvl="INFO", combined=False, date_in_file=True)
+feedback = define_logger("Feedback", path='..', file_lvl="INFO", combined=False, date_in_file=False)
+
 
 class Help:
     def __init__(self):
@@ -113,6 +120,38 @@ my_help.add_menu("Bot", "About bot")
 class Config:
     def __init__(self):
         self.color_pairs = Pair()
+        self.config_dir = os.path.abspath(os.path.join(__file__, '..', '..', 'config'))
+        self.clear_config_not_save = False
+        os.makedirs(self.config_dir, exist_ok=True)
+
+        self.load()
+
+    def save(self):
+        config_file = os.path.join(self.config_dir, "shelf.db")
+        if self.clear_config_not_save:
+            with shelve.open(config_file, flag="n") as sh:
+                pass
+        else:
+            with shelve.open(config_file, flag="c") as sh:
+                sh['color_pairs'] = self.color_pairs
+                logger.debug("Config save success")
+
+    def load(self):
+        config_file = os.path.join(self.config_dir, "shelf.db")
+        try:
+            sh = shelve.open(config_file, flag="r")
+        except Exception:
+            return None
+        try:
+            color_pairs = sh['color_pairs']
+            self.color_pairs = color_pairs
+            logger.debug("Config load success")
+        except Exception as err:
+            logger.error(f"Error when loading config {err}")
+            pass
+
+        finally:
+            sh.close()
 
     def add_rolemenu_color_pair(self, new_pair):
         self.color_pairs.add(new_pair)
@@ -212,8 +251,3 @@ async def send_approve(ctx):
 
 async def send_disapprove(ctx):
     await ctx.message.add_reaction('❌')
-
-
-logger = define_logger("Bot", path='..', file_lvl="INFO", stream_lvl="DEBUG", extra_debug="Debug.log")
-messenger = define_logger("Messenger", path='..', file_lvl="INFO", combined=False, date_in_file=True)
-feedback = define_logger("Feedback", path='..', file_lvl="INFO", combined=False, date_in_file=False)

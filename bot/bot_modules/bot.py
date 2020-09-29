@@ -372,6 +372,7 @@ async def close():
 
     logger.warning(f"close announcement is constant")
     logger.info(f"Going offline")
+    my_config.save()
 
 
 @bot.command()
@@ -465,7 +466,7 @@ async def on_command_error(ctx, command_error):
 async def on_member_join(member):
     logger.info(f"{member} has joined {member.guild} ({member.guild.id})")
 
-    await set_member_color(member, member.guild)
+    await set_member_single_role(member, member.guild, ROLE_COLORS.keys(), allow_random=True)
 
     color = Colour.from_rgb(10, 180, 50)
     embed = Embed(colour=color)
@@ -1368,6 +1369,21 @@ async def _user_feedback(ctx, *args, text, **kwargs):
 
     channel = bot.get_channel(feedback_channel)
     await channel.send(text)
+
+
+@bot.command()
+@advanced_args_function(bot)
+@advanced_perm_check_function(restrictions=is_bot_owner)
+async def clear_config(ctx, *args, **kwargs):
+    my_config.clear_config_not_save = True
+    await ctx.send("Will delete config on shutdown.")
+
+
+@bot.command()
+@advanced_args_function(bot)
+@advanced_perm_check_function(restrictions=is_bot_owner)
+async def show_config(ctx, *args, **kwargs):
+    await ctx.send(f"{my_config.color_pairs}")
 
 
 os.makedirs("avatars", exist_ok=True)
