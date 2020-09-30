@@ -535,6 +535,7 @@ async def clear_reactions(channel_id, messages_ids, emojis_to_remove, skip_emoji
     emojis_to_remove = set(emojis_to_remove)
     skip_emojis = set(skip_emojis)
     channel = bot.get_channel(channel_id)
+
     logger.debug(f"Emojis to remove: {emojis_to_remove}")
     logger.debug(f"skip emojis : {skip_emojis}")
 

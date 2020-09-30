@@ -18,7 +18,7 @@ services:
       context: .
       dockerfile: dockerfile_bot
     environment:
-      - TOKEN_FILE=yasiu_token.txt,
+      - TOKEN_FILE=yasiu_token.txt
       - PRODUCTION=True
     image: yasiu_bot:latest
     volumes:
