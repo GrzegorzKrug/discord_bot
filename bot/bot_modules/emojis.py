@@ -48,7 +48,7 @@ EMOJIS_ALPHABET = {
 }
 
 EMOJIS_SYMBOLS = {
-        "heart": "❤️",
+        "heart": "❤",
         "orange_heart": "🧡",
         "yellow_heart": "💛",
         "green_heart": "💚",

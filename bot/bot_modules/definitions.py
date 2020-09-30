@@ -7,7 +7,13 @@ from .emojis import *
 import shelve
 import os
 
-logger = define_logger("Bot", path='..', file_lvl="INFO", stream_lvl="DEBUG", extra_debug="Debug.log")
+production = bool(os.getenv('PRODUCTION', None))
+
+if production:
+    logger = define_logger("Bot", path='..', file_lvl="INFO", stream_lvl="DEBUG")
+else:
+    logger = define_logger("Bot", path='..', file_lvl="INFO", stream_lvl="DEBUG", extra_debug="Debug.log")
+
 messenger = define_logger("Messenger", path='..', file_lvl="INFO", combined=False, date_in_file=True)
 feedback = define_logger("Feedback", path='..', file_lvl="INFO", combined=False, date_in_file=False)
 

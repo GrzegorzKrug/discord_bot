@@ -348,7 +348,13 @@ async def set_member_single_role(member, guild, roles_names,
         logger.debug(f"no available roles")
         return None
 
-    if selection_text:
+    logger.debug(f"Selection text: {selection_text}")
+    if type(selection_text) is str and "random" in selection_text.lower():
+        random_role = True
+    else:
+        random_role = False
+
+    if selection_text and not random_role:
         if find_in_name:
             matching_list = [role for role in available_roles if selection_text.lower() in role.name.lower()]
         else:
@@ -385,7 +391,7 @@ async def set_member_single_role(member, guild, roles_names,
         else:
             logger.debug(f"No role was selected")
 
-    if allow_random and available_roles:
+    if (allow_random or random_role) and available_roles:
         n = 0
         new_role = random.choice(available_roles)
 
@@ -468,11 +474,11 @@ async def check_and_assign_reaction_color_role(member, message_id, channel_id, g
         return None
 
     emoji_to_name_dict = {item['emoji']: name for name, item in ROLE_COLORS.items()}
-    emoji_to_name_dict.update({EMOJIS['repeat_one']: "Rand"})
+    emoji_to_name_dict.update({EMOJIS['repeat_one']: "random"})
 
     if emoji not in emoji_to_name_dict:
         return None
-
+    logger.debug(f"Color emoji check correct: {emoji}")
     selection = emoji_to_name_dict.get(emoji, None)
 
     if not selection:
@@ -485,13 +491,12 @@ async def check_and_assign_reaction_color_role(member, message_id, channel_id, g
     for task in asyncio.all_tasks():
         if task.get_name() == coro_name:
             task.cancel()
+            logger.debug(f"Canceled during: {emoji}")
 
     key, value = my_config.color_pairs.get_pair(message_id)
-
-    coro = clear_reactions(channel_id, [key, value], set(emoji_to_name_dict.keys()), emoji, member)
+    coro = job_add_role_clear_reaction(selection, guild, channel_id, [key, value], set(emoji_to_name_dict.keys()),
+                                       emoji, member)
     task = loop.create_task(coro, name=coro_name)
-
-    color = await set_member_single_role(member, guild, ROLE_COLORS.keys(), selection)
 
     while not task.done():
         await asyncio.sleep(1)
@@ -499,7 +504,17 @@ async def check_and_assign_reaction_color_role(member, message_id, channel_id, g
             return None
     "Make sure that user did not spammed emojis"
     color = await set_member_single_role(member, guild, ROLE_COLORS.keys(), selection)
+    logger.debug(f"Reaction finished: {emoji}")
     return color
+
+
+async def job_add_role_clear_reaction(selection, guild,
+                                      channel_id, messages_ids,
+                                      emojis_to_remove, skip_emojis,
+                                      member):
+    await set_member_single_role(member, guild, ROLE_COLORS.keys(), selection)
+    await clear_reactions(channel_id, messages_ids, emojis_to_remove, skip_emojis, member)
+    # color = await set_member_single_role(member, guild, ROLE_COLORS.keys(), selection)
 
 
 async def clear_reactions(channel_id, messages_ids, emojis_to_remove, skip_emojis, member):
@@ -516,11 +531,13 @@ async def clear_reactions(channel_id, messages_ids, emojis_to_remove, skip_emoji
 
     """
     "Create sets, to operate faster"
-
     messages_ids = set(messages_ids)
     emojis_to_remove = set(emojis_to_remove)
     skip_emojis = set(skip_emojis)
     channel = bot.get_channel(channel_id)
+    logger.debug(f"Emojis to remove: {emojis_to_remove}")
+    logger.debug(f"skip emojis : {skip_emojis}")
+
     for msg_id in messages_ids:
         message = await channel.fetch_message(msg_id)
         for reaction in message.reactions:
@@ -536,6 +553,7 @@ async def clear_reactions(channel_id, messages_ids, emojis_to_remove, skip_emoji
             if this_user:
                 await asyncio.sleep(0.01)
                 await message.remove_reaction(reaction.emoji, member)
+                logger.debug(f"Removed {reaction.emoji}")
 
 
 @bot.event
