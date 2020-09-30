@@ -1,6 +1,7 @@
 from .definitions import *
 from .decorators import *
 from .permissions import *
+from .config import my_config
 
 from ast import literal_eval
 
@@ -282,6 +283,7 @@ async def color(ctx, selection=None, *args, **kwargs):
     Returns:
 
     """
+    raise NotImplementedError("Integrate with new roles")
     all_colors = [role for role in ctx.guild.roles if role.name in ROLE_COLORS]
 
     if not selection:
@@ -324,8 +326,8 @@ async def color(ctx, selection=None, *args, **kwargs):
         await ctx.send(embed=embed, delete_after=240)
 
 
-async def set_member_single_role(member, guild, roles_names,
-                                 selection_text=None,
+async def set_member_single_role(member, guild, emojis_to_role,
+                                 selection=None,
                                  allow_random=False,
                                  find_in_name=True):
     """
@@ -333,51 +335,35 @@ async def set_member_single_role(member, guild, roles_names,
     Args:
         member:
         guild:
-        roles_names:
-        selection_text: find role by its name, if more than 1, first role is selected from exact list if possible
+        emojis_to_role:
+        selection: find role by its name, if more than 1, first role is selected from exact list if possible
         allow_random: Select random role if nothing matches
         find_in_name: Partial name finding
 
     Returns:
 
     """
-    current = set(role for role in member.roles if role.name in roles_names and role.name != "@everyone")
-    available_roles = [role for role in guild.roles if role.name in roles_names and role.name != "@everyone"]
+    current = set(role for role in member.roles if role.id in emojis_to_role.values() and role.name != "@everyone")
+    available_roles = [role for role in guild.roles if role.id in emojis_to_role.values() and role.name != "@everyone"]
 
     if not available_roles:
         logger.debug(f"no available roles")
         return None
 
-    logger.debug(f"Selection text: {selection_text}")
-    if type(selection_text) is str and "random" in selection_text.lower():
+    logger.debug(f"Selection: {selection}")
+    if type(selection) is str and "random" in selection.lower():
         random_role = True
     else:
         random_role = False
 
-    if selection_text and not random_role:
-        if find_in_name:
-            matching_list = [role for role in available_roles if selection_text.lower() in role.name.lower()]
-        else:
-            matching_list = []
-        exact_list = [role for role in available_roles if selection_text.lower() == role.name.lower()]
-
+    if selection and not random_role:
+        matching_list = [role for role in available_roles if selection == role.id]
         if not matching_list:
-            logger.debug(f"not matching list")
+            logger.debug(f"Not matching role")
             return None
 
-        if find_in_name and len(matching_list) == 1:
-            selected_role = matching_list[0]
-        elif find_in_name and len(matching_list) > 1:
-            try:
-                selected_role = exact_list[0]
-            except IndexError:
-                selected_role = matching_list[0]
-        elif exact_list:
-            selected_role = exact_list[0]
         else:
-            selected_role = None
-
-        if selected_role:
+            selected_role = matching_list[0]
             try:
                 current.remove(selected_role)
             except KeyError:
@@ -388,8 +374,6 @@ async def set_member_single_role(member, guild, roles_names,
             if current:
                 await member.remove_roles(*current)
             return selected_role
-        else:
-            logger.debug(f"No role was selected")
 
     if (allow_random or random_role) and available_roles:
         n = 0
@@ -414,24 +398,55 @@ async def set_member_single_role(member, guild, roles_names,
             return new_role
 
 
+@bot.command(aliases=['rm', 'rolemenu'])
+@commands.has_permissions(manage_roles=True)
+@advanced_args_function(bot)
+@advanced_perm_check_function(restrictions=is_not_priv)
+@log_call_function
+@approve_fun
+@my_help.help_decorator("Command for managing role menus.", "add", menu='role', aliases=['rm', 'role_menu'])
+async def role_menu(ctx, action=None, menu=None, *args, **kwargs):
+    action = str(action).lower()
+    menu = str(menu).lower()
+
+    if action == "add" or action == "create":
+        logger.debug(f"Adding role menu for {menu}")
+        if menu == "color":
+            await add_role_menu_colors(ctx, action, menu)
+
+    elif action == "remove" or action == "del" or action == "delete":
+        logger.debug(f"Removing role menu for {menu}")
+        if menu == "color":
+            my_config.remove_role_menu(ctx.guild.id, 'color')
+    else:
+        await ctx.send("Example \n```\n!rolemenu add color\n```")
+
+
 @bot.command()
 @advanced_args_function(bot)
 @advanced_perm_check_function(is_bot_owner, restrictions=is_not_priv)
 @log_call_function
 @approve_fun
-async def test_reaction(ctx, *args, **kwargs):
+async def add_role_menu_colors(ctx, *args, **kwargs):
     server_roles = {role.name: role for role in ctx.guild.roles}
     text_half = ""
     text_end = ""
     pivot = 'LemonGrass'
     end_half = False
 
+    exists = my_config.is_role_menu_defined(ctx.guild.id, 'color')
+    logger.debug(f"Checking if exists: {exists}")
+    if exists:
+        await ctx.send("This server already has rolemenu for colors.")
+        return None
+
     "Send Embed Messages"
+    emoji_dict = {}
     for name, value in ROLE_COLORS.items():
         role = server_roles.get(name, None)
         if not role:
             continue
-
+        emoji_dict.update({value['emoji']: role.id})
         if role.name == pivot:
             text_half += f"\n{value['emoji']} {role.mention}"
             end_half = True
@@ -441,14 +456,14 @@ async def test_reaction(ctx, *args, **kwargs):
             text_end += f"\n{value['emoji']} {role.mention}"
 
     text_end += f"\n{EMOJIS['repeat_one']} Random"
+    emoji_dict.update({EMOJIS['repeat_one']: "random"})
 
     embed_half = Embed(description=text_half)
     embed_end = Embed(description=text_end)
     rolemenu_half = await ctx.send(embed=embed_half)
     rolemenu_end = await ctx.send(embed=embed_end)
 
-    role_menu_pair = (rolemenu_half.id, rolemenu_end.id)
-    my_config.add_rolemenu_color_pair(role_menu_pair)
+    my_config.add_role_menu(ctx.guild.id, 'color', emoji_dict, [rolemenu_half.id, rolemenu_end.id], ctx.channel.id)
 
     "Add Reactions"
     end_half = False
@@ -469,17 +484,19 @@ async def check_and_assign_reaction_color_role(member, message_id, channel_id, g
     if member.bot:
         return None
 
-    valid = my_config.color_pairs.check_if_in(message_id)
-    if not valid:
+    menu = my_config.get_role_menu_id(guild.id, message_id)
+
+    logger.debug(f"Checked menu: {bool(menu)}")
+    if not menu:
         return None
 
-    emoji_to_name_dict = {item['emoji']: name for name, item in ROLE_COLORS.items()}
-    emoji_to_name_dict.update({EMOJIS['repeat_one']: "random"})
+    emoji_to_role = menu['emojis_roles']
 
-    if emoji not in emoji_to_name_dict:
+    if emoji not in emoji_to_role:
         return None
+
     logger.debug(f"Color emoji check correct: {emoji}")
-    selection = emoji_to_name_dict.get(emoji, None)
+    selection = emoji_to_role.get(emoji, None)
 
     if not selection:
         return None
@@ -493,8 +510,10 @@ async def check_and_assign_reaction_color_role(member, message_id, channel_id, g
             task.cancel()
             logger.debug(f"Canceled during: {emoji}")
 
-    key, value = my_config.color_pairs.get_pair(message_id)
-    coro = job_add_role_clear_reaction(selection, guild, channel_id, [key, value], set(emoji_to_name_dict.keys()),
+    menu = my_config.get_role_menu_id(guild.id, message_id)
+    message_ids = menu['message_ids']
+
+    coro = job_add_role_clear_reaction(selection, guild, channel_id, message_ids, emoji_to_role, emoji_to_role.keys(),
                                        emoji, member)
     task = loop.create_task(coro, name=coro_name)
 
@@ -503,26 +522,25 @@ async def check_and_assign_reaction_color_role(member, message_id, channel_id, g
         if task.cancelled():
             return None
     "Make sure that user did not spammed emojis"
-    color = await set_member_single_role(member, guild, ROLE_COLORS.keys(), selection)
+    color = await set_member_single_role(member, guild, emoji_to_role, selection)
     logger.debug(f"Reaction finished: {emoji}")
     return color
 
 
-async def job_add_role_clear_reaction(selection, guild,
-                                      channel_id, messages_ids,
-                                      emojis_to_remove, skip_emojis,
+async def job_add_role_clear_reaction(selection, guild, channel_id, message_ids,
+                                      emoji_to_role, emojis_to_remove, skip_emojis,
                                       member):
-    await set_member_single_role(member, guild, ROLE_COLORS.keys(), selection)
-    await clear_reactions(channel_id, messages_ids, emojis_to_remove, skip_emojis, member)
+    await set_member_single_role(member, guild, emoji_to_role, selection)
+    await clear_reactions(channel_id, message_ids, emojis_to_remove, skip_emojis, member)
     # color = await set_member_single_role(member, guild, ROLE_COLORS.keys(), selection)
 
 
-async def clear_reactions(channel_id, messages_ids, emojis_to_remove, skip_emojis, member):
+async def clear_reactions(channel_id, message_ids, emojis_to_remove, skip_emojis, member):
     """
     Universal function, to clear emojis from selected user.
     Args:
         channel_id:
-        messages_ids:
+        message_ids:
         emojis_to_remove:
         skip_emojis:
         member:
@@ -531,7 +549,7 @@ async def clear_reactions(channel_id, messages_ids, emojis_to_remove, skip_emoji
 
     """
     "Create sets, to operate faster"
-    messages_ids = set(messages_ids)
+    message_ids = set(message_ids)
     emojis_to_remove = set(emojis_to_remove)
     skip_emojis = set(skip_emojis)
     channel = bot.get_channel(channel_id)
@@ -539,7 +557,7 @@ async def clear_reactions(channel_id, messages_ids, emojis_to_remove, skip_emoji
     logger.debug(f"Emojis to remove: {emojis_to_remove}")
     logger.debug(f"skip emojis : {skip_emojis}")
 
-    for msg_id in messages_ids:
+    for msg_id in message_ids:
         message = await channel.fetch_message(msg_id)
         for reaction in message.reactions:
             await asyncio.sleep(0.01)

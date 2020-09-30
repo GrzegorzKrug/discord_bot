@@ -18,6 +18,7 @@ from .definitions import *
 from .decorators import *
 from .files import *
 from .roles import *
+from .config import Config
 
 from .eft import EFTCog
 
@@ -355,6 +356,7 @@ async def on_message(message):
 @bot.event
 async def on_ready():
     act = Activity(type=ActivityType.watching, name=" if you need !help")
+    await my_config.check_loaded_config(bot)
     await bot.change_presence(status=Status.idle)
     await _announcement([SYSTEM_CHANNEL], "✅ Hey, i'm now online.")
     await bot.change_presence(activity=act, status=Status.online)
@@ -441,6 +443,11 @@ async def on_command_error(ctx, command_error):
         logger.warning(f"Bot is missing permissions: '{text_error}', server: '{server}', '!{invoked}'")
         emoji = "❌"
         await ctx.channel.send(f"Bot role is too low to change role: '!{invoked}'")
+
+    elif type(command_error) is CommandError:
+        logger.warning(f"Command error: '{text_error}', server: '{server}', '!{invoked}'")
+        emoji = "❌"
+        await ctx.channel.send(f"{text_error}: '!{invoked}'")
 
     elif "required positional argument" in text_error:
         emoji = "❌"
@@ -987,9 +994,9 @@ def get_help_embed(cmd_key=None, full=None, page=0):
             value = command['full']
             if not value:
                 value = command['simple']
-            embed.add_field(name=command['example'], value=f"```{value}```")
+            embed.add_field(name=f'`{command["example"]}`', value=f"```{value}```")
         else:
-            embed.add_field(name=command['example'], value=command['simple'])
+            embed.add_field(name=f'`{command["example"]}`', value=command['simple'])
         content = ""
 
     elif cmd_key in my_help.menus:
@@ -1001,7 +1008,7 @@ def get_help_embed(cmd_key=None, full=None, page=0):
         for cmd in commands_in_menu:
             command = my_help.help_dict[cmd]
             inline = False if len(command["simple"]) > 25 or len(command["example"]) > 25 else True
-            embed.add_field(name=command["example"], value=command["simple"], inline=inline)
+            embed.add_field(name=f'`{command["example"]}`', value=command["simple"], inline=inline)
 
     else:
         "Full Menu"
@@ -1014,7 +1021,7 @@ def get_help_embed(cmd_key=None, full=None, page=0):
 
             menu = menu.title()
             desc = my_help.menus_desc.get(menu.lower(), "No description")
-            embed.add_field(name=menu, value=f"`{EMOJIS[num + 1]}` {desc}", inline=inline)
+            embed.add_field(name=f"`{menu}`", value=f"`{EMOJIS[num + 1]}` {desc}", inline=inline)
 
     embed.set_thumbnail(url=bot.user.avatar_url)
 
@@ -1383,9 +1390,14 @@ async def clear_config(ctx, *args, **kwargs):
 @advanced_args_function(bot)
 @advanced_perm_check_function(restrictions=is_bot_owner)
 async def show_config(ctx, *args, **kwargs):
-    await ctx.send(f"{my_config.color_pairs}")
+    text = ""
+    await ctx.send(f"{my_config}")
+    for key, config in my_config.items():
+        text += f"\n {key}, {config.show()}"
+    await ctx.send(text)
 
 
 os.makedirs("avatars", exist_ok=True)
 my_help.create_help()
+
 bot.add_cog(EFTCog())

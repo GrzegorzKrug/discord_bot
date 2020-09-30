@@ -4,7 +4,6 @@ from discord import Colour
 from .loggers import define_logger
 from .emojis import *
 
-import shelve
 import os
 
 production = bool(os.getenv('PRODUCTION', None))
@@ -16,6 +15,8 @@ else:
 
 messenger = define_logger("Messenger", path='..', file_lvl="INFO", combined=False, date_in_file=True)
 feedback = define_logger("Feedback", path='..', file_lvl="INFO", combined=False, date_in_file=False)
+
+bot = Bot(command_prefix='!', case_insensitive=True, help_command=None)
 
 
 class Help:
@@ -123,79 +124,10 @@ my_help.add_menu("Rest", "No category")
 my_help.add_menu("Bot", "About bot")
 
 
-class Config:
-    def __init__(self):
-        self.color_pairs = Pair()
-        self.config_dir = os.path.abspath(os.path.join(__file__, '..', '..', 'config'))
-        self.clear_config_not_save = False
-        os.makedirs(self.config_dir, exist_ok=True)
-
-        self.load()
-
-    def save(self):
-        config_file = os.path.join(self.config_dir, "shelf.db")
-        if self.clear_config_not_save:
-            with shelve.open(config_file, flag="n") as sh:
-                pass
-        else:
-            with shelve.open(config_file, flag="c") as sh:
-                sh['color_pairs'] = self.color_pairs
-                logger.debug("Config save success")
-
-    def load(self):
-        config_file = os.path.join(self.config_dir, "shelf.db")
-        try:
-            sh = shelve.open(config_file, flag="r")
-        except Exception:
-            return None
-        try:
-            color_pairs = sh['color_pairs']
-            self.color_pairs = color_pairs
-            logger.debug("Config load success")
-        except Exception as err:
-            logger.error(f"Error when loading config {err}")
-            pass
-
-        finally:
-            sh.close()
-
-    def add_rolemenu_color_pair(self, new_pair):
-        self.color_pairs.add(new_pair)
-
-    def check_if_in_colors(self, id):
-        return self.color_pairs.check_if_in(id)
 
 
-class Pair:
-    def __init__(self):
-        self.pairs = dict()
-
-    def add(self, new_pair):
-        assert len(new_pair) == 2, "New pair should have exactly 2 elements"
-        self.pairs.update({new_pair[0]: new_pair[1]})
-        self.pairs.update({new_pair[1]: new_pair[0]})
-
-    def get_pair(self, id):
-        return id, self.pairs.get(id, None)
-
-    def check_if_in(self, id):
-        """
-        Checks in which message is pair
-        Args:
-            id:
-
-        Returns:
-
-        """
-        return id in self.pairs
-
-    def __str__(self):
-        return str(self.pairs.items())
 
 
-my_config = Config()
-
-bot = Bot(command_prefix='!', case_insensitive=True, help_command=None)
 ROLE_COLORS = {
         'Lavender': {'color': (200, 150, 255), 'emoji': EMOJIS['purple_heart']},
         'Purple': {'color': (220, 0, 250), 'emoji': EMOJIS['grapes']},

@@ -1,18 +1,18 @@
 #version: '3.3'
 
 services:
-  postgres_db:
-    image: postgres:12.4
-    command: postgres -c 'max_connections=500'
-    volumes:
-      - ./postgres-data:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_DB=yasiu_bot
-      - POSTGRES_USER=admin
-      - POSTGRES_PASSWORD=docker
-    ports:
-      - 5432:5432
-    restart: always
+#  postgres_db:
+#    image: postgres:12.4
+#    command: postgres -c 'max_connections=500'
+#    volumes:
+#      - ./postgres-data:/var/lib/postgresql/data
+#    environment:
+#      - POSTGRES_DB=yasiu_bot
+#      - POSTGRES_USER=admin
+#      - POSTGRES_PASSWORD=docker
+#    ports:
+#      - 5432:5432
+#    restart: always
   yasiu_bot:
     build:
       context: .
