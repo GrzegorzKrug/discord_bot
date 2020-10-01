@@ -15,13 +15,13 @@ from discord import File
 @advanced_perm_check_function(restrictions=is_bot_owner)
 @log_call_function
 @approve_fun
-async def logs(ctx, key=None, val=None, *args, **kwargs):
+async def logs(ctx, action=None, val=None, *args, **kwargs):
     user = bot.get_user(YOUSHISU_ID)
     log_dir = os.path.abspath(
             os.path.join(__file__, "..", "..", "..", "logs")
     )
     all_files = glob.glob(log_dir + os.path.sep + "*.log", recursive=True)
-    if not key or type(key) is str and key.lower() == "show":
+    if not action or type(action) is str and action.lower() == "show":
         "Show log list"
 
         if val:
@@ -39,7 +39,7 @@ async def logs(ctx, key=None, val=None, *args, **kwargs):
             await user.send("No log files available yet.")
         return None
 
-    elif type(key) is str and key.lower() == "send":
+    elif type(action) is str and action.lower() == "send":
         "Show log list"
         if val:
             files = [file for file in all_files if val.lower() in os.path.basename(file).lower()]
@@ -53,7 +53,7 @@ async def logs(ctx, key=None, val=None, *args, **kwargs):
             except FileNotFoundError as er:
                 await user.send(f"File not found: {er}")
 
-    elif type(key) is str and key.lower() == "clear":
+    elif type(action) is str and action.lower() == "clear":
         "Delete log files with confirmation"
 
         if val == "old":

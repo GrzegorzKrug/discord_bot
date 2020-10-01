@@ -18,6 +18,7 @@ from .definitions import *
 from .decorators import *
 from .files import *
 from .roles import *
+from .rolemenu import *
 from .config import my_config
 
 from .eft import EFTCog
