@@ -2,6 +2,7 @@ import requests
 import aiohttp
 import pandas as pd
 import bs4
+import os
 
 from discord.ext.commands import Cog, command
 from discord import Colour, Embed
@@ -14,6 +15,8 @@ from .definitions import *
 class EFTCog(Cog):
     def __init__(self):
         self.bot = bot
+        self.eft_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', "eft"))
+        os.makedirs(self.eft_dir, exist_ok=True)
 
     @command(aliases=['eftammoget'])
     @advanced_args_method()
@@ -36,7 +39,7 @@ class EFTCog(Cog):
         # res = aiohttp.request("get", spread_sheet_url)
         res = requests.get(spread_sheet_url)
         if res.status_code != 200:
-            await ctx.send(f"Request failed: {res.status_code}")
+            await ctx.send(f"Request failed, code: {res.status_code}")
             return None
 
         data_row_start = 3
@@ -73,12 +76,22 @@ class EFTCog(Cog):
                 underbarrel_df = underbarrel_df.append(serie, ignore_index=True)
 
         ammo_df = ammo_df.loc[:, ~(ammo_df.columns == "")]
-        ammo_df.to_csv("ammo.csv")
+
+        version_text = soup.find(attrs={"class": "name"}).text
+        version = re.findall(r"[\d\.]+", version_text)
+        version = "".join(version)
+        with open(os.path.join(self.eft_dir, "ammo_version.txt"), "wt") as file:
+            file.write(version)
+            logger.debug(f"Saved ammo version")
+
+        ammo_df.to_csv(os.path.join(self.eft_dir, "ammo.csv"))
+        logger.debug(f"Saved ammo.csv")
 
         underbarrel_df = underbarrel_df.loc[:, ~(underbarrel_df.columns == "")]
-        underbarrel_df.to_csv("grenade_ammo.csv")
+        underbarrel_df.to_csv(os.path.join(self.eft_dir, "grenade_ammo.csv"))
+        logger.debug(f"Saved grenade_ammo.csv")
 
-        logger.info(f"Saved tarkov ammo.")
+        logger.info(f"Saved all tarkov ammo.")
         await send_approve(ctx)
 
     @staticmethod
@@ -123,7 +136,7 @@ class EFTCog(Cog):
 
         """
         if not query:
-            calibers = pd.read_csv("ammo.csv", dtype=str)["Caliber"].unique()
+            calibers = pd.read_csv(os.path.join(self.eft_dir, "ammo.csv"), dtype=str)["Caliber"].unique()
             await ctx.send(f"Tell me **caliber ** or ammo **name**, example !ammo 5.56. \n"
                            f"Available calibers:\n"
                            f"{', '.join(f'`{ob}`' for ob in calibers)}")
@@ -140,11 +153,11 @@ class EFTCog(Cog):
             query = "gren"
 
         if "gren" in query or "bar" in query or 'unde' in query:
-            granade_df = pd.read_csv("grenade_ammo.csv", dtype=str)
-            embed = self.create_embed_granade(granade_df, priority="Damage")
+            granade_df = pd.read_csv(os.path.join(self.eft_dir, "grenade_ammo.csv"), dtype=str)
+            embed = self.create_embed_grenade(granade_df, priority="Damage")
 
         else:
-            ammo_df = pd.read_csv("ammo.csv").round(2)
+            ammo_df = pd.read_csv(os.path.join(self.eft_dir, "ammo.csv")).round(2)
 
             if "trac" in query:
                 ammo_df = ammo_df[ammo_df['Tracer'] == "Yes"]
@@ -160,15 +173,24 @@ class EFTCog(Cog):
                         ]
 
             embed = self.create_embed_ammo(ammo_df, priority=priority)
+
+        try:
+            with open(os.path.join(self.eft_dir, "ammo_version.txt"), "rt") as file:
+                version = file.read()
+        except FileNotFoundError:
+            version = "unkown"
+
         if not embed:
             await ctx.send("Nothing matching found.")
         else:
+            author = bot.get_user(YOUSHISU_ID)
+            embed.set_author(name=f"Version: {version}")
+            embed.set_footer(text='Made by Youshisu', icon_url=author.avatar_url)
             await ctx.send(embed=embed)
             await send_approve(ctx)
 
     def create_embed_ammo(self, data, priority=None):
         spread_sheet_url = r"https://docs.google.com/spreadsheets/d/1_l-gYeSt2MqIw62EdMZt_wefG0yO9L7dTaRM74c2J1w/htmlview#"
-        author = bot.get_user(147795752943353856)
         ammo_txtlen = 5
         col = Colour.from_rgb(30, 129, 220)
 
@@ -196,7 +218,7 @@ class EFTCog(Cog):
 
         embed = Embed(title=f'{calibers}', color=col,
                       description=f"[Ammo chart link]({spread_sheet_url})")
-        embed.set_author(name="Ammo table")
+
         embed.add_field(name="Sorted by", value=sort_text, inline=True)
         embed.add_field(name="Compared bullets", value=str(len(data)), inline=True)
         for key in keys[2:]:
@@ -206,12 +228,10 @@ class EFTCog(Cog):
             row_text = joiner.join(str(ob).ljust(ammo_txtlen) for ob in row_arr)
             embed.add_field(name=key, value=f"`{row_text}`", inline=False)
 
-        embed.set_footer(text='By  Youshisu', icon_url=author.avatar_url)
         return embed
 
-    def create_embed_granade(self, data, priority=None):
+    def create_embed_grenade(self, data, priority=None):
         spread_sheet_url = r"https://docs.google.com/spreadsheets/d/1_l-gYeSt2MqIw62EdMZt_wefG0yO9L7dTaRM74c2J1w/htmlview#"
-        author = bot.get_user(147795752943353856)
         ammo_txtlen = 5
         col = Colour.from_rgb(30, 129, 220)
 
@@ -225,7 +245,6 @@ class EFTCog(Cog):
 
         embed = Embed(title=f'Under-barrel grenades', color=col,
                       description=f"[Ammo chart link]({spread_sheet_url})")
-        embed.set_author(name="Ammo table")
 
         for key in keys[1:]:
             if not key:
@@ -234,5 +253,4 @@ class EFTCog(Cog):
             row_text = joiner.join(str(ob).ljust(ammo_txtlen) for ob in row_arr)
             embed.add_field(name=key, value=f"`{row_text}`", inline=False)
 
-        embed.set_footer(text='By  Youshisu', icon_url=author.avatar_url)
         return embed
