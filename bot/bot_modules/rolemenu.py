@@ -18,7 +18,14 @@ import asyncio
 @advanced_perm_check_function(restrictions=is_not_priv)
 @log_call_function
 @approve_fun
-@my_help.help_decorator("Command for managing role menus.", "add", menu='role', aliases=['rm', 'role_menu'])
+@my_help.help_decorator(
+        "Command for managing role menus.", "add|remove|edit|refresh",
+        menu='role',
+        aliases=['rm', 'rolemenu'],
+        actions={"create": "Create role menu from scratch or predefined",
+                 "remove": "Remove role menu defined by Yasiu",
+                 "show": "Show currently defined role menus on this server"}
+)
 async def role_menu(ctx, action=None, menu=None, *args, **kwargs):
     action = str(action).lower()
     menu = str(menu).lower()
@@ -32,8 +39,16 @@ async def role_menu(ctx, action=None, menu=None, *args, **kwargs):
         logger.debug(f"Removing role menu for {menu}")
         if menu == "color":
             my_config.remove_role_menu(ctx.guild.id, 'color')
+
+    elif action == "show":
+        rolemenus = list(my_config.show_server_role_menus(ctx.guild.id))
+        text = ", ".join(rolemenus)
+        text = "Currently defined role menus:\n" + text
+        await ctx.send(text)
+
     else:
-        await ctx.send("Example \n```\n!rolemenu add color\n```")
+        actions = "create", "remove", "show"  # ,"update","edit"
+        await ctx.send(f"Available actions ```{', '.join(actions)}```")
 
 
 @bot.command()

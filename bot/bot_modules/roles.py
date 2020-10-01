@@ -17,7 +17,7 @@ import numpy as np
 @advanced_perm_check_function(restrictions=is_not_priv)
 @approve_fun
 @log_call_function
-@my_help.help_decorator("Create colors that do not exist. Use keyword to update existing.",
+@my_help.help_decorator("Create colors that do not exist. Use keyword update to update existing.",
                         '(update)',
                         menu="role", aliases=['create_role_colors', 'create_color_roles'])
 async def create_colors(ctx, key=None, *args, update=False, **kwargs):

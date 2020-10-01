@@ -64,6 +64,10 @@ class Config:
     def get_role_menu_id(self, guild_id, message_id):
         return self.all_configs[guild_id].get_role_menu_id(message_id)
 
+    def show_server_role_menus(self, guild_id):
+        logger.debug(f"Asking for server roles: {guild_id}")
+        return self.all_configs[guild_id].show_role_menus()
+
     def items(self):
         return self.all_configs.items()
 
@@ -113,6 +117,10 @@ class ServerConfig:
     def get_role_menu_name(self, name):
         logger.debug(f"SC: Get role menu: {self.name}: {name}")
         return self.role_menus.get_role_menu_name(name)
+
+    def show_role_menus(self):
+        names = self.role_menus.keys()
+        return names
 
     def __str__(self):
         return f"Config {self.name}: {self.role_menus}"
@@ -171,6 +179,9 @@ class RoleMenus:
 
     def items(self):
         return self.menus.items()
+
+    def keys(self):
+        return self.menus.keys()
 
     def __str__(self):
         return str(self.menus.items())

@@ -7,7 +7,7 @@ from .definitions import send_disapprove, logger, EMOJIS
 from .definitions import YOUSHISU_ID
 
 from discord.ext.commands import CommandError
-from discord import HTTPException
+from discord import HTTPException, NotFound
 
 
 def string_mention_converter(bot, guild, text: "input str", bold_name=True) -> "String":
@@ -407,8 +407,13 @@ def approve_fun(coro):
             result = await coro(ctx, *args, **kwargs)
             await ctx.message.add_reaction('✅')
             return result
+        except NotFound:
+            pass
         except Exception as pe:
-            await ctx.message.add_reaction('❌')
+            try:
+                await ctx.message.add_reaction('❌')
+            except NotFound:
+                pass
             raise pe
 
     decorator.__name__ = coro.__name__

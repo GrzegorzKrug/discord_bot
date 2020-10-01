@@ -37,7 +37,7 @@ class Help:
         alias_dict = {}
         menu_dict = self.menus.copy()
         for object in self.temp_help_arr:
-            for key, simple, example, full, aliases, menu in object:
+            for key, simple, example, full, aliases, menu, actions in object:
                 menu = menu.lower()
                 key = key.lower()
 
@@ -51,20 +51,39 @@ class Help:
                     items = menu_dict[menu] + [key]
                     menu_dict.update({menu: items})
 
+                if actions:
+                    _example = "action"
+                else:
+                    _example = example
+
                 help_dict.update({
                         key: {
                                 "simple": simple,
-                                "example": f"!{key} {example}",
+                                "example": f"!{key} {_example}",
                                 "full": full,
                                 "aliases": aliases,
                                 "menu": menu,
+                                "actions": actions,
                         }
                 })
 
                 if aliases:
                     for alias in aliases:
+                        _aliases = set(aliases.copy())
+                        _aliases.add(key)
+                        _aliases.remove(alias)
+                        logger.debug(f"Adding aliases: {_aliases}")
                         alias = alias.lower()
-                        alias_dict.update({alias: {"simple": simple, "example": f"!{alias} {example}", "full": full}})
+                        alias_dict.update({
+                                alias: {
+                                        "simple": simple,
+                                        "example": f"!{alias} {_example}",
+                                        "full": full,
+                                        "actions": actions,
+                                        "aliases": _aliases,
+                                        "menu": menu,
+                                }
+                        })
 
         # help_dict =
 
@@ -72,8 +91,9 @@ class Help:
         self.alias_dict = alias_dict
         self.temp_help_arr = []
         self.menus = menu_dict
+        logger.debug(help_dict)
 
-    def help_decorator(self, simple, example=None, help_name=None, menu=None, aliases=None):
+    def help_decorator(self, simple, example=None, help_name=None, menu=None, aliases=None, actions=None):
         _help = []
 
         def wrapper(coro):
@@ -91,12 +111,12 @@ class Help:
             else:
                 _example = example
 
-            if aliases:
-                _simple = simple + "\n" + f"Aliases:" + ",".join(aliases)
-            else:
-                _simple = simple
+            # if aliases:
+            #     _simple = simple + "\n" + f"Aliases:" + ",".join(aliases)
+            # else:
+            #     _simple = simple
 
-            _help.append((key, _simple, _example, full_doc, aliases, _menu))
+            _help.append((key, simple, _example, full_doc, aliases, _menu, actions))
             # if aliases:
             #     for alias in aliases:
             #         _help.append((alias, _simple, f"!{alias}", full_doc, aliases))

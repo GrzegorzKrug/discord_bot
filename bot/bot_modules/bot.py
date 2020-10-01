@@ -24,7 +24,17 @@ from .config import my_config
 from .eft import EFTCog
 
 
-@bot.command(aliases=["invite_bot", "invite_me", 'join'])
+@bot.command()
+@advanced_args_function(bot)
+@log_call_function
+@my_help.help_decorator("Join my official server.", menu='bot')
+async def join(ctx, *args, **kwargs):
+    invite_link = r'https://discord.gg/nDCgNEU'
+    text = f"Join my official server.\n{invite_link}"
+    await ctx.send(text)
+
+
+@bot.command(aliases=["invite_bot", "invite_me", ])
 @advanced_args_function(bot)
 @log_call_function
 @my_help.help_decorator("Generate bot invitation", "priv or mentions", menu='bot')
@@ -474,7 +484,7 @@ async def on_command_error(ctx, command_error):
 async def on_member_join(member):
     logger.info(f"{member} has joined {member.guild} ({member.guild.id})")
 
-    await set_member_single_role_by_id(member, member.guild, ROLE_COLORS.keys(), allow_random=True)
+    await set_member_single_role_by_name(member, member.guild, ROLE_COLORS.keys(), allow_random=True)
 
     color = Colour.from_rgb(10, 180, 50)
     embed = Embed(colour=color)
@@ -888,7 +898,7 @@ async def hello(ctx, *args):
 @advanced_args_function(bot)
 @log_call_function
 @my_help.help_decorator("Help function", "(cmd) (full)", help_name="help", menu="bot")
-async def _help(ctx, cmd_key=None, *args, full=None, perm=None, **kwargs):
+async def _help(ctx, cmd_key=None, action=None, *args, full=None, perm=None, **kwargs):
     """
     Show embed help. Decorated with buttons.
     Args:
@@ -906,9 +916,10 @@ async def _help(ctx, cmd_key=None, *args, full=None, perm=None, **kwargs):
     if 'perm' in args or type(perm) is str and perm.lower() == 'true':
         await ctx.send("Permission help not implemented")
 
-    content, embed, is_menu, menu_size, pages_count, this_page = get_help_embed(cmd_key, full=full)
+    ret = get_help_embed(cmd_key, action=action, full=full)
+    content, embed, is_menu, menu_size, pages_count, this_page, current_depth = ret
     help_message = await ctx.send(content=content, embed=embed)
-    was_menu = False
+    # was_menu = False
     emoji_nums = {EMOJIS[num]: num for num in range(1, menu_size + 1)}
 
     await help_message.add_reaction(EMOJIS["arrow_back_left"])
@@ -940,7 +951,7 @@ async def _help(ctx, cmd_key=None, *args, full=None, perm=None, **kwargs):
 
         try:
             await reaction.remove(user)
-        except Exception:
+        except Exception as err:
             pass
 
         em = str(reaction.emoji)
@@ -957,26 +968,39 @@ async def _help(ctx, cmd_key=None, *args, full=None, perm=None, **kwargs):
         else:
             pass
 
-        if not was_menu and cmd_key:
+        ret = None
+        logger.debug(f"current depth: {current_depth}")
+        if current_depth == 3:
+            ret = get_help_embed(cmd_key, full=full)
+        elif current_depth == 2:
             menu = my_help.help_dict.get(cmd_key, None)
             if menu:
+                "Found menu in main help dict"
+                logger.debug(f"Menu: {menu}")
                 menu = menu.get("menu")
-        else:
-            menu = None
+                ret = get_help_embed(menu, page=page)
+            else:
+                "Checking aliases dict to get menu"
+                menu = my_help.alias_dict.get(cmd_key, None)
+                if menu:
+                    menu = menu.get("menu")
+                    ret = get_help_embed(menu, page=page)
 
-        ret = get_help_embed(menu, page=page)
-        content, embed, is_menu, menu_size, pages_count, this_page = ret
-        was_menu = is_menu
+        if not ret:
+            ret = get_help_embed(page=page)
+        # ret = get_help_embed(menu, page=page)
+        content, embed, is_menu, menu_size, pages_count, this_page, current_depth = ret
         await help_message.edit(content=content, embed=embed)
 
 
-def get_help_embed(cmd_key=None, full=None, page=0):
+def get_help_embed(cmd_key=None, action=None, full=None, page=0):
     embed = Embed(colour=Colour.from_rgb(60, 255, 150))
     embed.set_author(name=f"{bot.user.name} help menu")
     is_menu = False
     menu_size = 0
     pages_count = 0
     this_page = 0
+    curr_depth = 0
 
     if cmd_key:
         cmd_key = cmd_key.lower()
@@ -991,14 +1015,40 @@ def get_help_embed(cmd_key=None, full=None, page=0):
 
     if command:
         "1 Command"
+        logger.debug(f"Command help: {command}")
+        content = ""
         if full:
             value = command['full']
             if not value:
                 value = command['simple']
             embed.add_field(name=f'`{command["example"]}`', value=f"```{value}```")
+            curr_depth = 2
         else:
-            embed.add_field(name=f'`{command["example"]}`', value=command['simple'])
-        content = ""
+            simple_desc = command["simple"]
+            actions = command['actions']
+            aliases = command['aliases']
+
+            "Check is action was used"
+            try:
+                action_desc = actions.get(action, None)
+            except Exception:
+                action_desc = None
+                content = f"Not found action: {action}"
+
+            if action_desc:
+                simple_desc = action_desc
+
+                embed.add_field(name=f'`!{cmd_key} {action}`', value=simple_desc)
+                curr_depth = 3
+            else:
+                if actions:
+                    simple_desc += f"\n**Actions:** {', '.join(actions)}"
+
+                if aliases:
+                    simple_desc += f"\n**Aliases:** {', '.join(aliases)}"
+
+                embed.add_field(name=f'`{command["example"]}`', value=simple_desc)
+                curr_depth = 2
 
     elif cmd_key in my_help.menus:
         "1 Menu Page"
@@ -1008,8 +1058,15 @@ def get_help_embed(cmd_key=None, full=None, page=0):
         embed.set_author(name=cmd_key.title())
         for cmd in commands_in_menu:
             command = my_help.help_dict[cmd]
-            inline = False if len(command["simple"]) > 25 or len(command["example"]) > 25 else True
-            embed.add_field(name=f'`{command["example"]}`', value=command["simple"], inline=inline)
+            simple_desc = command["simple"]
+
+            aliases = command['aliases']
+            if aliases:
+                simple_desc += f"\n**Aliases:** {', '.join(aliases)}"
+
+            inline = False if len(simple_desc) > 25 or len(command["example"]) > 25 else True
+            embed.add_field(name=f'`{command["example"]}`', value=simple_desc, inline=inline)
+        curr_depth = 1
 
     else:
         "Full Menu"
@@ -1022,11 +1079,12 @@ def get_help_embed(cmd_key=None, full=None, page=0):
 
             menu = menu.title()
             desc = my_help.menus_desc.get(menu.lower(), "No description")
-            embed.add_field(name=f"`{menu}`", value=f"`{EMOJIS[num + 1]}` {desc}", inline=inline)
+            embed.add_field(name=f"`{menu}`", value=f"{desc}", inline=inline)
+        curr_depth = 0
 
     embed.set_thumbnail(url=bot.user.avatar_url)
 
-    return content, embed, is_menu, menu_size, pages_count, this_page
+    return content, embed, is_menu, menu_size, pages_count, this_page, curr_depth
 
 
 @bot.command(aliases=['sweeper'])
@@ -1335,7 +1393,7 @@ def save_image(image, path):
 @log_call_function
 @my_help.help_decorator("Send feedback to author, problems or new ideas, depending on which command was used.",
                         "<text>",
-                        aliases=['feedback', 'report', 'problem', 'suggestion', 'suggest', 'idea'],
+                        aliases=['report', 'problem', 'suggestion', 'suggest', 'idea'],
                         help_name="feedback")
 async def _user_feedback(ctx, *args, text, **kwargs):
     """
