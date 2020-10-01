@@ -281,7 +281,6 @@ async def color(ctx, selection=None, *args, **kwargs):
     Returns:
 
     """
-    raise NotImplementedError("Integrate with new roles")
     all_colors = [role for role in ctx.guild.roles if role.name in ROLE_COLORS]
 
     if not selection:
@@ -300,7 +299,7 @@ async def color(ctx, selection=None, *args, **kwargs):
         return None
 
     if type(selection) is str and selection.lower() == "random" or "rand" in selection.lower():
-        new_color = await set_member_single_role_by_id(ctx.author, ctx.guild, ROLE_COLORS.keys(), allow_random=True)
+        new_color = await set_member_single_role_by_name(ctx.author, ctx.guild, ROLE_COLORS.keys(), allow_random=True)
         embed = Embed(title=f"{ctx.author.name} is now", description=new_color.mention)
         embed.set_thumbnail(url=ctx.author.avatar_url)
         await ctx.send(embed=embed, delete_after=240)
@@ -312,7 +311,7 @@ async def color(ctx, selection=None, *args, **kwargs):
         await ctx.send("Not found matching role", delete_after=60)
         return None
 
-    new_color = await set_member_single_role_by_id(ctx.author, ctx.guild, ROLE_COLORS.keys(), selection)
+    new_color = await set_member_single_role_by_name(ctx.author, ctx.guild, ROLE_COLORS.keys(), selection)
     if not new_color:
         "Color not in ROLE_COLORS"
         await ctx.send(f"This color is not valid: {selection}", delete_after=60)
@@ -324,44 +323,60 @@ async def color(ctx, selection=None, *args, **kwargs):
         await ctx.send(embed=embed, delete_after=240)
 
 
-async def set_member_single_role_by_id(member, guild, emojis_to_role,
-                                 selection=None,
-                                 allow_random=False,
-                                 find_in_name=True):
+async def set_member_single_role_by_name(member, guild, roles_names,
+                                         selection_text=None,
+                                         allow_random=False,
+                                         find_in_name=True):
     """
     Set member role to color or random
     Args:
         member:
         guild:
-        emojis_to_role:
-        selection: find role by its name, if more than 1, first role is selected from exact list if possible
+        roles_names:
+        selection_text: find role by its name, if more than 1, first role is selected from exact list if possible
         allow_random: Select random role if nothing matches
         find_in_name: Partial name finding
 
     Returns:
 
     """
-    current = set(role for role in member.roles if role.id in emojis_to_role.values() and role.name != "@everyone")
-    available_roles = [role for role in guild.roles if role.id in emojis_to_role.values() and role.name != "@everyone"]
+    current = set(role for role in member.roles if role.name in roles_names and role.name != "@everyone")
+    available_roles = [role for role in guild.roles if role.name in roles_names and role.name != "@everyone"]
 
     if not available_roles:
         logger.debug(f"no available roles")
         return None
 
-    logger.debug(f"Selection: {selection}")
-    if type(selection) is str and "random" in selection.lower():
+    logger.debug(f"Selection text: {selection_text}")
+    if type(selection_text) is str and "random" in selection_text.lower():
         random_role = True
     else:
         random_role = False
 
-    if selection and not random_role:
-        matching_list = [role for role in available_roles if selection == role.id]
+    if selection_text and not random_role:
+        if find_in_name:
+            matching_list = [role for role in available_roles if selection_text.lower() in role.name.lower()]
+        else:
+            matching_list = []
+        exact_list = [role for role in available_roles if selection_text.lower() == role.name.lower()]
+
         if not matching_list:
-            logger.debug(f"Not matching role")
+            logger.debug(f"not matching list")
             return None
 
-        else:
+        if find_in_name and len(matching_list) == 1:
             selected_role = matching_list[0]
+        elif find_in_name and len(matching_list) > 1:
+            try:
+                selected_role = exact_list[0]
+            except IndexError:
+                selected_role = matching_list[0]
+        elif exact_list:
+            selected_role = exact_list[0]
+        else:
+            selected_role = None
+
+        if selected_role:
             try:
                 current.remove(selected_role)
             except KeyError:
@@ -372,6 +387,8 @@ async def set_member_single_role_by_id(member, guild, emojis_to_role,
             if current:
                 await member.remove_roles(*current)
             return selected_role
+        else:
+            logger.debug(f"No role was selected")
 
     if (allow_random or random_role) and available_roles:
         n = 0
@@ -394,5 +411,3 @@ async def set_member_single_role_by_id(member, guild, emojis_to_role,
             if current:
                 await member.remove_roles(*current)
             return new_role
-
-
