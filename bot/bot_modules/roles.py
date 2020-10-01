@@ -59,7 +59,7 @@ async def create_colors(ctx, key=None, *args, update=False, **kwargs):
     await ctx.send(embed=embed)
 
 
-@bot.command()
+@bot.command(aliases=['roles', 'showroles'])
 @advanced_args_function(bot)
 @advanced_perm_check_function(restrictions=is_not_priv)
 @approve_fun
@@ -199,12 +199,13 @@ async def remove_yasiu_roles(ctx, *args, dry=False, **kwargs):
 
     for role in ctx.guild.roles:
         if role.name.startswith("yasiu_"):
+            logger.debug(f"Trying to delete {role.name}")
             try:
                 if not dry:
                     await role.delete()
                 count += 1
-            except Exception:
-                pass
+            except Exception as err:
+                logger.error(f"Can not delete role: {err}")
     if not dry:
         text = f"Removed {count} Yasiu's roles"
         logger.info(text + f" at {ctx.guild}")
@@ -224,6 +225,7 @@ async def remove_yasiu_colors(ctx, *args, dry=False, **kwargs):
 
     for role in ctx.guild.roles:
         if role.name in ROLE_COLORS:
+            logger.debug(f"Trying to delete {role.name}")
             try:
                 if not dry:
                     await role.delete()
@@ -389,6 +391,76 @@ async def set_member_single_role_by_name(member, guild, roles_names,
             return selected_role
         else:
             logger.debug(f"No role was selected")
+
+    if (allow_random or random_role) and available_roles:
+        n = 0
+        new_role = random.choice(available_roles)
+
+        while n < 10:
+            n += 1
+            new_role = random.choice(available_roles)
+            if new_role not in current:
+                break
+
+        if new_role:
+            try:
+                current.remove(new_role)
+            except KeyError:
+                pass
+
+            await member.add_roles(new_role)
+
+            if current:
+                await member.remove_roles(*current)
+            return new_role
+
+
+async def set_member_single_role_by_id(member, guild, emojis_to_role,
+                                       selection=None,
+                                       allow_random=False,
+                                       find_in_name=True):
+    """
+    Set member role to color or random
+    Args:
+        member:
+        guild:
+        emojis_to_role:
+        selection: find role by its name, if more than 1, first role is selected from exact list if possible
+        allow_random: Select random role if nothing matches
+        find_in_name: Partial name finding
+    Returns:
+    """
+    current = set(role for role in member.roles if role.id in emojis_to_role.values() and role.name != "@everyone")
+    available_roles = [role for role in guild.roles if role.id in emojis_to_role.values() and role.name != "@everyone"]
+
+    if not available_roles:
+        logger.debug(f"no available roles")
+        return None
+
+    logger.debug(f"Selection: {selection}")
+    if type(selection) is str and "random" in selection.lower():
+        random_role = True
+    else:
+        random_role = False
+
+    if selection and not random_role:
+        matching_list = [role for role in available_roles if selection == role.id]
+        if not matching_list:
+            logger.debug(f"Not matching role")
+            return None
+
+        else:
+            selected_role = matching_list[0]
+            try:
+                current.remove(selected_role)
+            except KeyError:
+                pass
+
+            await member.add_roles(selected_role)
+
+            if current:
+                await member.remove_roles(*current)
+            return selected_role
 
     if (allow_random or random_role) and available_roles:
         n = 0
