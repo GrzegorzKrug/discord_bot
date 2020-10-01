@@ -94,23 +94,24 @@ class ServerConfig:
                         break
 
             for bad_role_menu in to_delete:
+                logger.info(f"Removing missing role menu: {self.name}: {bad_role_menu}")
                 self.remove_role_menu(bad_role_menu)
 
     def add_role_menu(self, name, emojis_role_dictionary, message_ids, channel_id):
-        logger.debug(f"Add role menu: {self.name}: {name}")
+        logger.debug(f"SC: Add role menu: {self.name}: {name}")
         message_ids = set(message_ids)
         self.role_menus.add_role_menu(name, emojis_role_dictionary, message_ids, channel_id)
 
     def remove_role_menu(self, name):
-        logger.debug(f"Remove role menu: {self.name}: {name}")
+        logger.debug(f"SC: Remove role menu: {self.name}: {name}")
         self.role_menus.remove_role_menu(name)
 
     def get_role_menu_id(self, message_id):
-        logger.debug(f"Get role menu: {self.name}: {message_id}")
+        logger.debug(f"SC: Get role menu: {self.name}: {message_id}")
         return self.role_menus.get_role_menu_id(message_id)
 
     def get_role_menu_name(self, name):
-        logger.debug(f"Get role menu: {self.name}: {name}")
+        logger.debug(f"SC: Get role menu: {self.name}: {name}")
         return self.role_menus.get_role_menu_name(name)
 
     def __str__(self):
@@ -141,7 +142,7 @@ class RoleMenus:
                 self.refs_to_channel.update({msg_id: channel_id})
 
     def remove_role_menu(self, name):
-        logger.debug(f"Removing role_menu: {name}")
+        logger.debug(f"RM: Removing role_menu: {name}")
         if name not in self.menus:
             raise CommandError(f"This menu is not defined {name}")
 

@@ -18,7 +18,7 @@ from .definitions import *
 from .decorators import *
 from .files import *
 from .roles import *
-from .config import Config
+from .config import my_config
 
 from .eft import EFTCog
 
@@ -473,7 +473,7 @@ async def on_command_error(ctx, command_error):
 async def on_member_join(member):
     logger.info(f"{member} has joined {member.guild} ({member.guild.id})")
 
-    await set_member_single_role(member, member.guild, ROLE_COLORS.keys(), allow_random=True)
+    await set_member_single_role_by_id(member, member.guild, ROLE_COLORS.keys(), allow_random=True)
 
     color = Colour.from_rgb(10, 180, 50)
     embed = Embed(colour=color)
@@ -1386,7 +1386,7 @@ async def clear_config(ctx, *args, **kwargs):
     await ctx.send("Will delete config on shutdown.")
 
 
-@bot.command()
+@bot.command(aliases=['showconfig'])
 @advanced_args_function(bot)
 @advanced_perm_check_function(restrictions=is_bot_owner)
 async def show_config(ctx, *args, **kwargs):

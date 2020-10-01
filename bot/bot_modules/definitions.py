@@ -123,11 +123,6 @@ my_help.add_menu("Tarkov", "Tarkov related commands")
 my_help.add_menu("Rest", "No category")
 my_help.add_menu("Bot", "About bot")
 
-
-
-
-
-
 ROLE_COLORS = {
         'Lavender': {'color': (200, 150, 255), 'emoji': EMOJIS['purple_heart']},
         'Purple': {'color': (220, 0, 250), 'emoji': EMOJIS['grapes']},
