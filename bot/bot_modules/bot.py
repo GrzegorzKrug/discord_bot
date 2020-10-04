@@ -241,7 +241,7 @@ def world_wide_format(message, msg_type=None):
 @advanced_args_function(bot)
 @log_call_function
 @my_help.help_decorator("Show global messages examples", menu="chat")
-@advanced_perm_check_function(is_bot_owner, is_server_owner)
+@advanced_perm_check_function(is_server_owner, is_bot_owner)
 async def global_examples(ctx, *args, **kwargs):
     """
 Examples used in global chat. Default 'field'
@@ -1442,23 +1442,31 @@ async def _user_feedback(ctx, *args, text, **kwargs):
     await channel.send(text)
 
 
-@bot.command()
-@advanced_args_function(bot)
-@advanced_perm_check_function(restrictions=is_bot_owner)
-async def clear_config(ctx, *args, **kwargs):
-    my_config.clear_config_not_save = True
-    await ctx.send("Will delete config on shutdown.")
+async def send_long_message(ctx, text):
+    """"""
+
+    pivot = 0
+    while pivot < len(text):
+        to_send = text[pivot:pivot + 2000]
+        await ctx.send(to_send)
+        pivot += 2000
+
+
+# @bot.command()
+# @advanced_args_function(bot)
+# @advanced_perm_check_function(restrictions=is_bot_owner)
+# async def clear_config(ctx, *args, **kwargs):
+#     my_config.clear_config_not_save = True
+#     await ctx.send("Will delete config on shutdown.")
 
 
 @bot.command(aliases=['showconfig'])
 @advanced_args_function(bot)
 @advanced_perm_check_function(restrictions=is_bot_owner)
 async def show_config(ctx, *args, **kwargs):
-    text = ""
-    await ctx.send(f"{my_config}")
-    for key, config in my_config.items():
-        text += f"\n {key}, {config}"
-    await ctx.send(text)
+    for guild_id, config in my_config.items():
+        text = f"\n {guild_id}, {config}"
+        await send_long_message(ctx, text)
 
 
 os.makedirs("avatars", exist_ok=True)
