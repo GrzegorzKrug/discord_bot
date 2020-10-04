@@ -105,11 +105,11 @@ class ServerConfig:
         self.role_menus = RoleMenus()
 
     def __add__(self, other):
-        self.config = {**self.config, **other.config}
-        self.role_menus = self.role_menus + other.role_menus
-        self.name = other.name
-        self.server_id = other.server_id
-
+        if other:
+            self.config = {**self.config, **other.config}
+            self.role_menus = self.role_menus + other.role_menus
+            self.name = other.name
+            self.server_id = other.server_id
         return self
 
     async def check(self, bot):
