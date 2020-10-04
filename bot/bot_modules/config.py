@@ -15,6 +15,7 @@ class Config:
 
         # Config is checked, when bot is ready and logged in, now we just load.
         self.load()
+        self.new_config_shape()
 
     def save(self):
         config_file = os.path.join(self.config_dir, "shelf.db")
@@ -49,11 +50,32 @@ class Config:
     async def check_loaded_config(self, bot):
         if not self.all_configs:
             logger.debug(f"Creating new configs")
+
             self.all_configs = {guild.id: ServerConfig(guild.id, guild.name) for guild in bot.guilds}
 
         else:
             for config in self.all_configs.values():
                 await config.check(bot)
+
+            guilds = {guild.id for guild in bot.guilds}
+            have_cfg = set(self.all_configs.keys())
+            missing_configs = have_cfg.difference(guilds)
+
+            for guild_id in missing_configs:
+                guild = bot.get_guild(guild_id)
+                self.all_configs[guild_id] = ServerConfig(guild_id, guild.name)
+
+    def new_config_shape(self):
+        logger.debug(f"New config shape starting.")
+        for id, config in self.all_configs.items():
+            logger.debug(f"New config for server: {id}")
+            self.all_configs[id] = ServerConfig(None, None) + config
+
+        logger.debug(f"New config: {self.all_configs}")
+
+    def add_server(self, guild_id, guild_name):
+        cfg = ServerConfig(guild_id, guild_name)
+        self.all_configs[guild_id] = cfg
 
     def add_role_menu(self, guild_id, name, *args, **kwargs):
         self.all_configs[guild_id].add_role_menu(name, *args, **kwargs)
@@ -79,8 +101,16 @@ class ServerConfig:
     def __init__(self, server_id, name):
         self.server_id = server_id
         self.name = name
-        self.config = {}
-        self.role_menus = RoleMenus()  # "Name": ids
+        self.config = dict()
+        self.role_menus = RoleMenus()
+
+    def __add__(self, other):
+        self.config = {**self.config, **other.config}
+        self.role_menus = self.role_menus + other.role_menus
+        self.name = other.name
+        self.server_id = other.server_id
+
+        return self
 
     async def check(self, bot):
         """ Check if channels defined are visible for bot"""
@@ -123,7 +153,7 @@ class ServerConfig:
         return names
 
     def __str__(self):
-        return f"Config {self.name}: {self.role_menus}"
+        return f"Config for {self.name}:\n{self.role_menus}"
 
     def show(self):
         return f"Config {self.name}: {self.role_menus}"
@@ -134,6 +164,19 @@ class RoleMenus:
         self.menus = {}
         self.message_ids = set()
         self.refs_to_channel = {}
+
+    def __add__(self, old):
+        if old:
+            self.menus = {**self.menus, **old.menus}
+            self.message_ids = self.message_ids | old.message_ids
+            self.refs_to_channel = {**self.refs_to_channel, **old.refs_to_channel}
+        return self
+
+    def __str__(self):
+        return f"Menus: {self.menus.keys()},\n" \
+               f"Msg ids: {self.message_ids},\n" \
+               f"Refs to channel: {self.refs_to_channel},\n" \
+               f"Dir: {dir(self)}"
 
     def add_role_menu(self, name, emojis_role_dictionary, message_ids, channel_id):
         logger.debug(f"Adding role menu: {name}")
@@ -182,9 +225,6 @@ class RoleMenus:
 
     def keys(self):
         return self.menus.keys()
-
-    def __str__(self):
-        return str(self.menus.items())
 
 
 my_config = Config()

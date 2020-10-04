@@ -34,6 +34,11 @@ async def join(ctx, *args, **kwargs):
     await ctx.send(text)
 
 
+@bot.event
+async def on_guild_join(guild):
+    my_config.add_server(guild.id, guild.name)
+
+
 @bot.command(aliases=["invite_bot", "invite_me", ])
 @advanced_args_function(bot)
 @log_call_function
@@ -1452,7 +1457,7 @@ async def show_config(ctx, *args, **kwargs):
     text = ""
     await ctx.send(f"{my_config}")
     for key, config in my_config.items():
-        text += f"\n {key}, {config.show()}"
+        text += f"\n {key}, {config}"
     await ctx.send(text)
 
 
