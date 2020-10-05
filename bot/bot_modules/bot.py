@@ -1465,7 +1465,7 @@ async def send_long_message(ctx, text):
 @advanced_perm_check_function(restrictions=is_bot_owner)
 async def show_config(ctx, *args, force=False, **kwargs):
     for guild_id, config in my_config.items():
-        if ctx.guild and guild_id != ctx.guild.it and not force:
+        if ctx.guild and guild_id != ctx.guild.id and not force:
         # if guild_id != 750696820736393257 and guild_id != 757529198230372363 and not force:  # Turbo test server, Yasiu server
             continue
         text = f"\n {guild_id}, {config}"
