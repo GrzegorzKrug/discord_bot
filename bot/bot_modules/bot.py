@@ -1463,7 +1463,7 @@ async def send_long_message(ctx, text):
 @bot.command(aliases=['showconfig'])
 @advanced_args_function(bot)
 @advanced_perm_check_function(restrictions=is_bot_owner)
-@log_call        
+@log_call_function        
 async def show_config(ctx, *args, force=False, **kwargs):
     for guild_id, config in my_config.items():
         if not force and (ctx.guild and guild_id != ctx.guild.id):
