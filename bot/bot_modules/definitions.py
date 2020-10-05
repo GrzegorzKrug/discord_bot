@@ -149,7 +149,7 @@ ROLE_COLORS = {
         'Violet': {'color': (160, 0, 255), 'emoji': EMOJIS['eggplant']},
         'BlackBerry': {'color': (150, 30, 130), 'emoji': EMOJIS['fleur_de_lis']},
         'DarkBlue': {'color': (50, 100, 200), 'emoji': EMOJIS['whale2']},
-        'Blue': {'color': (00, 70, 255), 'emoji': EMOJIS['blue_heart']},
+        'Blue': {'color': (0, 70, 255), 'emoji': EMOJIS['blue_heart']},
         'LtBlue': {'color': (60, 200, 255), 'emoji': EMOJIS['fish']},
         'Cyan': {'color': (0, 255, 255), 'emoji': EMOJIS['butterfly']},
 
