@@ -72,7 +72,7 @@ class Help:
                         _aliases = set(aliases.copy())
                         _aliases.add(key)
                         _aliases.remove(alias)
-                        logger.debug(f"Adding aliases: {_aliases}")
+                        # logger.debug(f"Adding aliases: {_aliases}")
                         alias = alias.lower()
                         alias_dict.update({
                                 alias: {

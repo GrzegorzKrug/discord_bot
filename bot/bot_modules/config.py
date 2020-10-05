@@ -117,13 +117,16 @@ class ServerConfig:
         logger.debug(f"Checking config for: {self.name}")
         if self.role_menus:
             to_delete = set()
+            # logger.debug(f"Checking role menu: {self.role_menus}")
             for name, settings in self.role_menus.items():
+                logger.debug(f"configs: {settings}")
                 for msg_id in settings['message_ids']:
                     channel = bot.get_channel(self.role_menus.refs_to_channel.get(msg_id))
                     try:
                         await channel.fetch_message(msg_id)
+                        logger.debug(f"found message, not removing menu")
                     except NotFound:
-                        logger.debug(f"Don't see message, removing rolemenu: {name}")
+                        logger.debug(f"Don't see message, removing role menu: {name}")
                         to_delete.add(name)
                         break
 
@@ -131,10 +134,10 @@ class ServerConfig:
                 logger.info(f"Removing missing role menu: {self.name}: {bad_role_menu}")
                 self.remove_role_menu(bad_role_menu)
 
-    def add_role_menu(self, name, emojis_role_dictionary, message_ids, channel_id):
+    def add_role_menu(self, name, emojis_role_dictionary, message_ids, channel_id, role_type):
         logger.debug(f"SC: Add role menu: {self.name}: {name}")
         message_ids = set(message_ids)
-        self.role_menus.add_role_menu(name, emojis_role_dictionary, message_ids, channel_id)
+        self.role_menus.add_role_menu(name, emojis_role_dictionary, message_ids, channel_id, role_type)
 
     def remove_role_menu(self, name):
         logger.debug(f"SC: Remove role menu: {self.name}: {name}")
@@ -166,31 +169,64 @@ class RoleMenus:
         self.refs_to_channel = {}
 
     def __add__(self, old):
+        logger.debug("ADD RLM")
         if old:
-            self.menus = {**self.menus, **old.menus}
+            new_menu = {}
+            for name, value in old.menus.items():
+                logger.debug(f"Menu name: {name}")
+                blank_menu = self.new_role_menu(name)
+
+                for key, _val in value.items():
+                    if key in blank_menu[name]:
+                        blank_menu[name][key] = _val
+                        logger.debug(f"Key yes, in dict: {key}")
+                    else:
+                        logger.debug(f"Key not in dict: {key}")
+
+                logger.debug(f"blank: {blank_menu}")
+                new_menu.update({**blank_menu})
+
+            logger.debug(f"New menu: {new_menu.items()}")
+
+            self.menus = new_menu
             self.message_ids = self.message_ids | old.message_ids
             self.refs_to_channel = {**self.refs_to_channel, **old.refs_to_channel}
+
         return self
 
     def __str__(self):
-        return f"Menus: {self.menus.keys()},\n" \
+        return f"Menus: {self.menus.items()},\n" \
                f"Msg ids: {self.message_ids},\n" \
                f"Refs to channel: {self.refs_to_channel},\n" \
                f"Dir: {dir(self)}"
 
-    def add_role_menu(self, name, emojis_role_dictionary, message_ids, channel_id):
+    def add_role_menu(self, name, emojis_role_dictionary, message_ids, channel_id, role_type):
         logger.debug(f"Adding role menu: {name}")
         if name in self.menus:
             raise CommandError(f"This menu is defined on server {name}")
         else:
-            self.menus.update({name: {
-                    'name': name,
-                    'emojis_roles': emojis_role_dictionary,
-                    'channel_id': channel_id,
-                    'message_ids': message_ids}})
+            menu = self.new_role_menu(name, emojis_role_dictionary, message_ids, channel_id, role_type)
+            self.menus.update({**menu})
+
             for msg_id in message_ids:
                 self.message_ids.add(msg_id)
                 self.refs_to_channel.update({msg_id: channel_id})
+
+    @staticmethod
+    def new_role_menu(name=None, emojis_role_dictionary=None, message_ids=None, channel_id=None, role_type="single"):
+        menu = dict()
+        emojis_role_dictionary = dict() if not emojis_role_dictionary else emojis_role_dictionary
+        message_ids = set() if not message_ids else message_ids
+        channel_id = set() if not channel_id else channel_id
+
+        menu.update({name: {
+                'name': name,
+                'emojis_roles': emojis_role_dictionary,
+                'channel_id': channel_id,
+                'message_ids': message_ids,
+                'role_type': role_type
+        }})
+        return menu
 
     def remove_role_menu(self, name):
         logger.debug(f"RM: Removing role_menu: {name}")
@@ -218,6 +254,7 @@ class RoleMenus:
                 return menu
 
     def get_role_menu_name(self, name):
+        logger.debug(f"RM: get role menu")
         return self.menus.get(name, None)
 
     def items(self):
@@ -225,6 +262,9 @@ class RoleMenus:
 
     def keys(self):
         return self.menus.keys()
+
+
+
 
 
 my_config = Config()

@@ -33,7 +33,7 @@ async def role_menu(ctx, action=None, menu=None, *args, **kwargs):
     if action == "add" or action == "create":
         logger.debug(f"Adding role menu for {menu}")
         if menu == "color":
-            await add_role_menu_colors(ctx, action, menu)
+            await add_role_menu_colors(ctx, action, menu, 'single')
 
     elif action == "remove" or action == "del" or action == "delete":
         logger.debug(f"Removing role menu for {menu}")
@@ -66,7 +66,7 @@ async def add_role_menu_colors(ctx, *args, **kwargs):
     exists = my_config.is_role_menu_defined(ctx.guild.id, 'color')
     logger.debug(f"Checking if exists: {exists}")
     if exists:
-        await ctx.send("This server already has rolemenu for colors.")
+        await ctx.send("This server already has role menu for colors.")
         return None
 
     "Send Embed Messages"
@@ -92,7 +92,14 @@ async def add_role_menu_colors(ctx, *args, **kwargs):
     rolemenu_half = await ctx.send(embed=embed_half)
     rolemenu_end = await ctx.send(embed=embed_end)
 
-    my_config.add_role_menu(ctx.guild.id, 'color', emoji_dict, [rolemenu_half.id, rolemenu_end.id], ctx.channel.id)
+    try:
+        await rolemenu_half.pin()
+        await rolemenu_end.pin()
+    except Exception as err:
+        pass
+
+    my_config.add_role_menu(ctx.guild.id, 'color', emoji_dict, [rolemenu_half.id, rolemenu_end.id],
+                            ctx.channel.id, 'single')
 
     "Add Reactions"
     end_half = False
@@ -107,6 +114,7 @@ async def add_role_menu_colors(ctx, *args, **kwargs):
             await rolemenu_end.add_reaction(emoji)
         await asyncio.sleep(0.02)
     await rolemenu_end.add_reaction(EMOJIS['repeat_one'])
+    await ctx.message.delete(delay=30)
 
 
 async def check_and_assign_reaction_color_role(member, message_id, channel_id, guild, emoji):
@@ -120,6 +128,7 @@ async def check_and_assign_reaction_color_role(member, message_id, channel_id, g
         return None
 
     emoji_to_role = menu['emojis_roles']
+    role_type = menu['role_type']
 
     if emoji not in emoji_to_role:
         return None
@@ -130,7 +139,7 @@ async def check_and_assign_reaction_color_role(member, message_id, channel_id, g
     if not selection:
         return None
 
-    coro_name = f"{guild.name}-color-{member.name}"
+    coro_name = f"{guild.name}-{menu['name']}-{member.name}"
     loop = asyncio.get_event_loop()
     await asyncio.sleep(0.1)
 
@@ -142,8 +151,8 @@ async def check_and_assign_reaction_color_role(member, message_id, channel_id, g
     menu = my_config.get_role_menu_id(guild.id, message_id)
     message_ids = menu['message_ids']
 
-    coro = job_add_role_clear_reaction(selection, guild, channel_id, message_ids, emoji_to_role, emoji_to_role.keys(),
-                                       emoji, member)
+    coro = job_add_role_clear_reactions(selection, guild, channel_id, message_ids, emoji_to_role, emoji_to_role.keys(),
+                                        {emoji}, member)
     task = loop.create_task(coro, name=coro_name)
 
     while not task.done():
@@ -156,9 +165,9 @@ async def check_and_assign_reaction_color_role(member, message_id, channel_id, g
     return color
 
 
-async def job_add_role_clear_reaction(selection, guild, channel_id, message_ids,
-                                      emoji_to_role, emojis_to_remove, skip_emojis,
-                                      member):
+async def job_add_role_clear_reactions(selection, guild, channel_id, message_ids,
+                                       emoji_to_role, emojis_to_remove, skip_emojis,
+                                       member):
     await set_member_single_role_by_id(member, guild, emoji_to_role, selection)
     await clear_reactions(channel_id, message_ids, emojis_to_remove, skip_emojis, member)
     # color = await set_member_single_role_by_id(member, guild, ROLE_COLORS.keys(), selection)
@@ -184,7 +193,7 @@ async def clear_reactions(channel_id, message_ids, emojis_to_remove, skip_emojis
     channel = bot.get_channel(channel_id)
 
     logger.debug(f"Emojis to remove: {emojis_to_remove}")
-    logger.debug(f"skip emojis : {skip_emojis}")
+    logger.debug(f"skip emojis : `{skip_emojis}`")
 
     for msg_id in message_ids:
         message = await channel.fetch_message(msg_id)
@@ -212,6 +221,7 @@ async def on_raw_reaction_add(payload):
     guild_id = payload.guild_id
     emoji = payload.emoji.name
     member = payload.member
+    logger.debug(f"reaction: '{emoji}'")
     try:
         guild = member.guild
     except AttributeError as err:

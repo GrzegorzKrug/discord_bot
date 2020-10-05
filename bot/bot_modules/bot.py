@@ -1463,10 +1463,23 @@ async def send_long_message(ctx, text):
 @bot.command(aliases=['showconfig'])
 @advanced_args_function(bot)
 @advanced_perm_check_function(restrictions=is_bot_owner)
-async def show_config(ctx, *args, **kwargs):
+async def show_config(ctx, *args, force=False, **kwargs):
     for guild_id, config in my_config.items():
+        if guild_id != 750696820736393257 and guild_id != 757529198230372363 and not force:  # Turbo test server, Yasiu server
+            continue
         text = f"\n {guild_id}, {config}"
         await send_long_message(ctx, text)
+        if not force:
+            break
+
+
+@bot.command(aliases=['checkconfig'])
+@advanced_args_function(bot)
+@advanced_perm_check_function(restrictions=is_bot_owner)
+@log_call_function
+@approve_fun
+async def check_config(ctx, *args, **kwargs):
+    await my_config.check_loaded_config(bot)
 
 
 os.makedirs("avatars", exist_ok=True)
