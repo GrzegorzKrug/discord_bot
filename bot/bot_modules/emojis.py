@@ -369,6 +369,7 @@ EMOJI_FOOD = {
         "banana": "🍌",
         "watermelon": "🍉",
         "grapes": "🍇",
+        "blueberries": '🫐',
         "strawberry": "🍓",
         "melon": "🍈",
         "cherries": "🍒",

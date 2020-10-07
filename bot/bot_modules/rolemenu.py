@@ -38,7 +38,7 @@ async def role_menu(ctx, action=None, menu=None, *args, **kwargs):
     elif action == "remove" or action == "del" or action == "delete":
         logger.debug(f"Removing role menu for {menu}")
         if menu == "color":
-            my_config.remove_role_menu(ctx.guild.id, 'color')
+            await job_rolemenu_remove(ctx.guild.id, 'color')
 
     elif action == "show":
         rolemenus = list(my_config.show_server_role_menus(ctx.guild.id))
@@ -49,6 +49,26 @@ async def role_menu(ctx, action=None, menu=None, *args, **kwargs):
     else:
         actions = "create", "remove", "show"  # ,"update","edit"
         await ctx.send(f"Available actions ```{', '.join(actions)}```")
+
+
+async def job_rolemenu_remove(guild_id, name):
+    menu = my_config.get_role_menu_name(guild_id, name)
+    if menu:
+        chan_id = menu['channel_id']
+        channel = bot.get_channel(chan_id)
+        for msg_id in menu['message_ids']:
+            try:
+                message = await channel.fetch_message(msg_id)
+            except Exception as err:
+                logger.debug(f"{err}")
+                continue
+
+            try:
+                await message.delete()
+            except Exception as err:
+                logger.warning(f"Error during message removing: {err}")
+
+    my_config.remove_role_menu(guild_id, name)
 
 
 @bot.command()
@@ -63,7 +83,7 @@ async def add_role_menu_colors(ctx, *args, **kwargs):
     pivot = 'LemonGrass'
     end_half = False
 
-    exists = my_config.is_role_menu_defined(ctx.guild.id, 'color')
+    exists = my_config.get_role_menu_name(ctx.guild.id, 'color')
     logger.debug(f"Checking if exists: {exists}")
     if exists:
         await ctx.send("This server already has role menu for colors.")
@@ -198,14 +218,13 @@ async def clear_reactions(channel_id, message_ids, emojis_to_remove, skip_emojis
     for msg_id in message_ids:
         message = await channel.fetch_message(msg_id)
         for reaction in message.reactions:
-            logger.debug(f"Checking reaction: {reaction.emoji}")
             await asyncio.sleep(0.01)
             if str(reaction.emoji) in skip_emojis:
-                logger.debug("skipping")
+                logger.debug(f"Skipped: {reaction.emoji}")
                 continue
 
             if str(reaction.emoji) not in emojis_to_remove:
-                logger.debug(f"don't remove that, skip")
+                logger.debug(f"Don't remove that, skip: {reaction.emoji}")
                 continue
 
             users = await reaction.users().flatten()
@@ -213,6 +232,8 @@ async def clear_reactions(channel_id, message_ids, emojis_to_remove, skip_emojis
             if this_user:
                 await message.remove_reaction(reaction.emoji, member)
                 logger.debug(f"Removed {reaction.emoji}")
+            else:
+                logger.debug(f"Nothing happened: {reaction.emoji}")
 
 
 @bot.event
@@ -226,7 +247,6 @@ async def on_raw_reaction_add(payload):
     member = payload.member
 
     logger.debug(f"reaction: '{emoji.name}' ")
-    # logger.debug(f"{emoji.url}")
     logger.debug(f"ID:       {emoji.id}")
     logger.debug(f"Custom?:  {emoji.is_custom_emoji()}")
     logger.debug(f"Unicode?: {emoji.is_unicode_emoji()}")

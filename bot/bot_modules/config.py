@@ -93,7 +93,7 @@ class Config:
     def items(self):
         return self.all_configs.items()
 
-    def is_role_menu_defined(self, guild_id, name):
+    def get_role_menu_name(self, guild_id, name):
         return self.all_configs[guild_id].get_role_menu_name(name)
 
 
@@ -231,7 +231,7 @@ class RoleMenus:
     def remove_role_menu(self, name):
         logger.debug(f"RM: Removing role_menu: {name}")
         if name not in self.menus:
-            raise CommandError(f"This menu is not defined {name}")
+            raise CommandError(f"This menu is not defined `{name}`")
 
         rolemenu = self.menus.get(name)
         for msg_id in rolemenu['message_ids']:
@@ -262,9 +262,6 @@ class RoleMenus:
 
     def keys(self):
         return self.menus.keys()
-
-
-
 
 
 my_config = Config()

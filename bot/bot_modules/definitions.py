@@ -145,10 +145,10 @@ my_help.add_menu("Bot", "About bot")
 
 ROLE_COLORS = {
         'Lavender': {'color': (200, 150, 255), 'emoji': EMOJIS['purple_heart']},
-        'Purple': {'color': (220, 0, 250), 'emoji': EMOJIS['grapes']},
         'Violet': {'color': (160, 0, 255), 'emoji': EMOJIS['eggplant']},
+        'Purple': {'color': (220, 0, 250), 'emoji': EMOJIS['grapes']},
         'BlackBerry': {'color': (150, 30, 130), 'emoji': EMOJIS['fleur_de_lis']},
-        'DarkBlue': {'color': (50, 100, 200), 'emoji': EMOJIS['whale2']},
+        'DarkBlue': {'color': (50, 100, 200), 'emoji': EMOJIS['blueberries']},
         'Blue': {'color': (0, 170, 255), 'emoji': EMOJIS['blue_heart']},
         'LtBlue': {'color': (60, 200, 255), 'emoji': EMOJIS['fish']},
         'Cyan': {'color': (0, 255, 255), 'emoji': EMOJIS['butterfly']},
@@ -165,10 +165,10 @@ ROLE_COLORS = {
         'Orange': {'color': (255, 150, 0), 'emoji': EMOJIS['orange_heart']},
 
         'Pink': {'color': (255, 150, 235), 'emoji': EMOJIS['hibiscus']},
-        'Rose': {'color': (255, 70, 150), 'emoji': EMOJIS['rose']},    
+        'Rose': {'color': (255, 70, 150), 'emoji': EMOJIS['rose']},
         'LtRed': {'color': (255, 80, 80), 'emoji': EMOJIS['tulip']},
-        'Red': {'color': (255, 0, 0), 'emoji': EMOJIS['heart']},               
-        'Maroon': {'color': (170, 0, 50), 'emoji': EMOJIS['maple_leaf']},            
+        'Red': {'color': (255, 0, 0), 'emoji': EMOJIS['heart']},
+        'Maroon': {'color': (170, 0, 50), 'emoji': EMOJIS['maple_leaf']},
 
         'Black': {'color': (1, 1, 1), 'emoji': EMOJIS['black_heart']},
         'Gray': {'color': (150, 160, 170), 'emoji': EMOJIS['wolf']},

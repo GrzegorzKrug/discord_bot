@@ -372,12 +372,17 @@ async def on_message(message):
 @bot.event
 async def on_ready():
     act = Activity(type=ActivityType.watching, name=" if you need !help")
-    await my_config.check_loaded_config(bot)
     await bot.change_presence(status=Status.idle)
     await _announcement([SYSTEM_CHANNEL], "✅ Hey, i'm now online.")
     await bot.change_presence(activity=act, status=Status.online)
     logger.warning(f"On ready announcement is constant")
     logger.info(f"Going online as {bot.user.name}")
+
+    start_periodic_tasks()
+
+
+def start_periodic_tasks():
+    _check_config_periodically.start()
 
 
 @bot.event
@@ -838,7 +843,7 @@ async def react(ctx, *args, **kwargs):
     await asyncio.sleep(0.1)
 
     def check_reaction(reaction, user):
-        print(f"New reaction: {reaction}, {bytes(reaction.emoji, encoding='utf-8')}")
+        logger.debug(f"New reaction: {reaction}, {bytes(reaction.emoji, encoding='utf-8')}")
         return user == ctx.message.author and message.id == reaction.message.id and reaction.emoji == "⛔"
 
     try:
@@ -1463,11 +1468,11 @@ async def send_long_message(ctx, text):
 @bot.command(aliases=['showconfig'])
 @advanced_args_function(bot)
 @advanced_perm_check_function(restrictions=is_bot_owner)
-@log_call_function        
+@log_call_function
 async def show_config(ctx, *args, force=False, **kwargs):
     for guild_id, config in my_config.items():
         if not force and (ctx.guild and guild_id != ctx.guild.id):
-        # if guild_id != 750696820736393257 and guild_id != 757529198230372363 and not force:  # Turbo test server, Yasiu server
+            # if guild_id != 750696820736393257 and guild_id != 757529198230372363 and not force:  # Turbo test server, Yasiu server
             continue
         text = f"\n {guild_id}, {config}"
         await send_long_message(ctx, text)
@@ -1481,6 +1486,12 @@ async def show_config(ctx, *args, force=False, **kwargs):
 @log_call_function
 @approve_fun
 async def check_config(ctx, *args, **kwargs):
+    await my_config.check_loaded_config(bot)
+
+
+@tasks.loop(hours=1)
+async def _check_config_periodically():
+    logger.info(f"Checking config periodically")
     await my_config.check_loaded_config(bot)
 
 
