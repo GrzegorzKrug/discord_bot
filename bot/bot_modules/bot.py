@@ -838,7 +838,7 @@ async def react(ctx, *args, **kwargs):
     await asyncio.sleep(0.1)
 
     def check_reaction(reaction, user):
-        print(f"New reaction: {reaction}")
+        print(f"New reaction: {reaction}, {bytes(reaction.emoji, encoding='utf-8')}")
         return user == ctx.message.author and message.id == reaction.message.id and reaction.emoji == "⛔"
 
     try:

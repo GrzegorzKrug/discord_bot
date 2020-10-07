@@ -198,17 +198,19 @@ async def clear_reactions(channel_id, message_ids, emojis_to_remove, skip_emojis
     for msg_id in message_ids:
         message = await channel.fetch_message(msg_id)
         for reaction in message.reactions:
+            logger.debug(f"Checking reaction: {reaction.emoji}")
             await asyncio.sleep(0.01)
             if str(reaction.emoji) in skip_emojis:
+                logger.debug("skipping")
                 continue
 
             if str(reaction.emoji) not in emojis_to_remove:
+                logger.debug(f"don't remove that, skip")
                 continue
 
             users = await reaction.users().flatten()
             this_user = [user for user in users if user.id == member.id]
             if this_user:
-                await asyncio.sleep(0.01)
                 await message.remove_reaction(reaction.emoji, member)
                 logger.debug(f"Removed {reaction.emoji}")
 
@@ -219,12 +221,20 @@ async def on_raw_reaction_add(payload):
     user_id = payload.user_id
     channel_id = payload.channel_id
     guild_id = payload.guild_id
-    emoji = payload.emoji.name
+    emoji = payload.emoji
+    em_name = emoji.name
     member = payload.member
-    logger.debug(f"reaction: '{emoji}'")
+
+    logger.debug(f"reaction: '{emoji.name}' ")
+    # logger.debug(f"{emoji.url}")
+    logger.debug(f"ID:       {emoji.id}")
+    logger.debug(f"Custom?:  {emoji.is_custom_emoji()}")
+    logger.debug(f"Unicode?: {emoji.is_unicode_emoji()}")
+    logger.debug(f"bytes:    {bytes(emoji.name, encoding='utf-8')}")
+
     try:
         guild = member.guild
     except AttributeError as err:
         return None
 
-    await check_and_assign_reaction_color_role(member, message_id, channel_id, member.guild, emoji)
+    await check_and_assign_reaction_color_role(member, message_id, channel_id, member.guild, em_name)
