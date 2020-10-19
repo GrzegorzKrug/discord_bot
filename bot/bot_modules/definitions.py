@@ -91,7 +91,7 @@ class Help:
         self.alias_dict = alias_dict
         self.temp_help_arr = []
         self.menus = menu_dict
-        logger.debug(help_dict)
+        # logger.debug(help_dict)
 
     def help_decorator(self, simple, example=None, help_name=None, menu=None, aliases=None, actions=None):
         _help = []

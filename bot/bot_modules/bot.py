@@ -22,6 +22,7 @@ from .rolemenu import *
 from .config import my_config
 
 from .eft import EFTCog
+from .avatar_fun import *
 
 
 @bot.command()
