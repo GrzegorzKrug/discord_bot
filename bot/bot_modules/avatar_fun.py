@@ -13,7 +13,7 @@ import cv2
 @advanced_args_function(bot)
 @find_one_member_name_and_picture(bot)
 @log_call_function
-@my_help.help_decorator("Creates poster", menu="fun")
+@my_help.help_decorator("Create wanted poster", example="(name) or (mention)", menu="fun")
 async def wanted(ctx, name, avatar_url, *args, **kwargs):
     image = get_picture(avatar_url)
     image = cv2.resize(image, (256, 256))
@@ -46,7 +46,8 @@ def _create_wanted_image(image, name):
 @advanced_args_function(bot)
 @find_one_member_name_and_picture(bot)
 @log_call_function
-@my_help.help_decorator("Check if somebody was and imposter", menu="fun", aliases=['imposter'])
+@my_help.help_decorator("Check if somebody was and imposter", example="(name) or (mention)", menu="fun",
+                        aliases=['imposter'])
 async def check_imposter(ctx, name, avatar_url, *args, **kwargs):
     """"""
     image = get_picture(avatar_url)
