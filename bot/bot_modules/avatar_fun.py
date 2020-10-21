@@ -1,76 +1,78 @@
-from discord import File
-from io import BytesIO
-
-import discord
-
 from .definitions import *
 from .decorators import *
 from .loggers import *
+from .images import *
 
-import requests
+import asyncio
 import imutils
 import numpy as np
 import cv2
 
 
+@bot.command()
+@advanced_args_function(bot)
+@find_one_member_name_and_picture(bot)
+@log_call_function
+@my_help.help_decorator("Creates poster", menu="fun")
+async def wanted(ctx, name, avatar_url, *args, **kwargs):
+    image = get_picture(avatar_url)
+    image = cv2.resize(image, (256, 256))
+    await asyncio.sleep(0.1)
+
+    imposter = _create_wanted_image(image, name)
+    await asyncio.sleep(0.1)
+
+    file = image_to_discord_file(imposter, "wanted")
+    await ctx.send(file=file)
+
+
+def _create_wanted_image(image, name):
+    img_path = os.path.join(os.path.dirname(__file__), "src_images", "wanted3.png")
+    wanted = cv2.imread(img_path)
+
+    image = convert_to_sephia(image, 7, 60)
+    rows, cols, channels = image.shape
+    cx, cy = 185, 350
+    slic = (slice(cy, cy + rows), slice(cx, cx + cols), slice(None))
+    roi = wanted[slic]
+    roi[:, :] = image
+    gray = cv2.cvtColor(wanted, cv2.COLOR_BGR2GRAY)
+    mask = gray >= 255
+    # wanted[mask] = 0
+    return wanted
+
+
 @bot.command(aliases=['imposter'])
 @advanced_args_function(bot)
+@find_one_member_name_and_picture(bot)
 @log_call_function
 @my_help.help_decorator("Check if somebody was and imposter", menu="fun", aliases=['imposter'])
-async def check_imposter(ctx, *args, **kwargs):
-    if ctx.message.mentions:
-        "Process mention"
-        avatar_url = ctx.message.mentions[0].avatar_url
-        name = ctx.message.mentions[0].name
-
-    elif args:
-        name = args[0]
-        member = discord.utils.find(lambda m: name.lower() in m.name.lower(), ctx.guild.members)
-        logger.debug(f"Found member: {member}")
-        if member:
-            avatar_url = member.avatar_url
-            name = member.name
-        else:
-            avatar_url = ctx.author.avatar_url
-            name = ctx.author.name
-
-    else:
-        avatar_url = ctx.author.avatar_url
-        name = ctx.author.name
-
-    res = requests.get(avatar_url, stream=True)
-    if res.status_code != 200:
-        logger.error(f"Request has incorrect code: {res.status_code}")
-        return None
-    image = np.frombuffer(res.content, dtype=np.uint8)
-    image = cv2.imdecode(image, cv2.IMREAD_COLOR)
-
+async def check_imposter(ctx, name, avatar_url, *args, **kwargs):
+    """"""
+    image = get_picture(avatar_url)
+    await asyncio.sleep(0.1)
     imposter = _create_imposter_image(image, name)
-    success, img_bytes = cv2.imencode(".png", imposter)
-    if success:
-        bytes_like = BytesIO(img_bytes)
-        fp = File(bytes_like, filename="imposter.png")
-        await ctx.send(file=fp)
-
-    # await send_approve(ctx)
+    await asyncio.sleep(0.1)
+    file = image_to_discord_file(imposter, "imposter")
+    await ctx.send(file=file)
 
 
 def _create_imposter_image(image, name):
-    imp_path = os.path.join(os.path.dirname(__file__), "src_images", "imposter.png")
-    eject_picture = cv2.imread(imp_path)
+    img_path = os.path.join(os.path.dirname(__file__), "src_images", "imposter.png")
+    eject_picture = cv2.imread(img_path)
     is_imposter = random.choice([True, False])
-    angle = np.random.randint(15, 170)
+    angle = np.random.randint(15, 160)
 
     if is_imposter:
         text = "was the imposter."
     else:
         text = "was not the imposter."
 
-    imposter = cv2.resize(image, (320, 320))
+    imposter = cv2.resize(image, (256, 256))
     imposter = imutils.rotate_bound(imposter, angle)
 
     rs, cs, _ = imposter.shape
-    posx, posy = 350, 110
+    posx, posy = 400, 120
     roi = eject_picture[posy:posy + rs, posx:posx + cs, :]
     roi[:, :, :] = imposter
 

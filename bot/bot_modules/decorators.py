@@ -1,3 +1,4 @@
+import discord
 import asyncio
 import time
 import re
@@ -170,6 +171,50 @@ def _get_advanced_kwargs(bot, ctx, *args, bold_name=False, **kwargs):
     kwargs['text'] = text
 
     return good_args, kwargs
+
+
+def find_one_member_name_and_picture(bot, bold_name=False):
+    """
+    Decorator that find.
+    Args:
+        bot: bot instance
+        bold_name:
+
+    Returns:
+        message object returned by calling given function with given params
+    """
+
+    def wrapper(coro):
+        logger.warning(f"Advanced args are not supporting non kwargs functions")
+
+        async def f(ctx, *args, **kwargs):
+            if ctx.message.mentions:
+                avatar_url = ctx.message.mentions[0].avatar_url
+                name = ctx.message.mentions[0].name
+
+            elif args:
+                name = args[0]
+                member = discord.utils.find(lambda m: name.lower() in m.name.lower(), ctx.guild.members)
+                logger.debug(f"Found member: {member}")
+                if member:
+                    avatar_url = member.avatar_url
+                    name = member.name
+                else:
+                    avatar_url = ctx.author.avatar_url
+                    name = ctx.author.name
+
+            else:
+                avatar_url = ctx.author.avatar_url
+                name = ctx.author.name
+
+            output = await coro(ctx, name, avatar_url, *args, **kwargs)
+            return output
+
+        f.__name__ = coro.__name__
+        f.__doc__ = coro.__doc__
+        return f
+
+    return wrapper
 
 
 def advanced_args_function(bot, bold_name=False):
