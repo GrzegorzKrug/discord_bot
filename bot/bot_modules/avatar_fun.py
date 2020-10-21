@@ -59,12 +59,12 @@ def _create_imposter_image(image, name):
     imp_path = os.path.join(os.path.dirname(__file__), "src_images", "imposter.png")
     eject_picture = cv2.imread(imp_path)
     is_imposter = random.choice([True, False])
-    angle = np.random.randint(0, 360)
+    angle = np.random.randint(15, 170)
 
     if is_imposter:
-        text = "{} was the imposter."
+        text = "was the imposter."
     else:
-        text = "{} was not the imposter."
+        text = "was not the imposter."
 
     imposter = cv2.resize(image, (320, 320))
     imposter = imutils.rotate_bound(imposter, angle)
@@ -72,12 +72,11 @@ def _create_imposter_image(image, name):
     rs, cs, _ = imposter.shape
     posx, posy = 350, 110
     roi = eject_picture[posy:posy + rs, posx:posx + cs, :]
-
     roi[:, :, :] = imposter
 
-    text = text.format(name)
     text_color = (0, 0, 255) if is_imposter else (255, 255, 255)
-    cv2.putText(eject_picture, text, (50, 600), cv2.QT_FONT_NORMAL, 1.7, text_color, 3)
+    cv2.putText(eject_picture, name, (50, 600), cv2.FONT_HERSHEY_COMPLEX, 1.6, text_color, 2, cv2.LINE_AA)
+    cv2.putText(eject_picture, text, (50, 660), cv2.FONT_HERSHEY_COMPLEX, 1.6, (255, 255, 255), 2, cv2.LINE_AA)
     dest_x, dest_y = eject_picture.shape[0:2]
 
     dest_x = int(dest_x // 1.5)
