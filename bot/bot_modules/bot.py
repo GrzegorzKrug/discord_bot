@@ -20,7 +20,7 @@ from .files import *
 from .roles import *
 from .rolemenu import *
 from .config import my_config
-from .test import *
+# from .test import *
 from .eft import EFTCog
 from .avatar_fun import *
 
