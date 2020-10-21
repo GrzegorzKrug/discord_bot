@@ -1,6 +1,8 @@
 from discord import File
 from io import BytesIO
 
+import discord
+
 from .definitions import *
 from .decorators import *
 from .loggers import *
@@ -17,8 +19,21 @@ import cv2
 @my_help.help_decorator("Check if somebody was and imposter", menu="fun", aliases=['imposter'])
 async def check_imposter(ctx, *args, **kwargs):
     if ctx.message.mentions:
+        "Process mention"
         avatar_url = ctx.message.mentions[0].avatar_url
         name = ctx.message.mentions[0].name
+
+    elif args:
+        name = args[0]
+        member = discord.utils.find(lambda m: name.lower() in m.name.lower(), ctx.guild.members)
+        logger.debug(f"Found member: {member}")
+        if member:
+            avatar_url = member.avatar_url
+            name = member.name
+        else:
+            avatar_url = ctx.author.avatar_url
+            name = ctx.author.name
+
     else:
         avatar_url = ctx.author.avatar_url
         name = ctx.author.name
@@ -43,22 +58,26 @@ async def check_imposter(ctx, *args, **kwargs):
 def _create_imposter_image(image, name):
     imp_path = os.path.join(os.path.dirname(__file__), "src_images", "imposter.png")
     eject_picture = cv2.imread(imp_path)
+    is_imposter = random.choice([True, False])
     angle = np.random.randint(0, 360)
-    pool = ["{} was not the imposter.",
-            "{} was the imposter"]
-    text = random.choice(pool)
-    imposter = imutils.rotate_bound(image, angle)
-    imposter = cv2.resize(imposter, (350, 350))
+
+    if is_imposter:
+        text = "{} was the imposter."
+    else:
+        text = "{} was not the imposter."
+
+    imposter = cv2.resize(image, (320, 320))
+    imposter = imutils.rotate_bound(imposter, angle)
 
     rs, cs, _ = imposter.shape
-    posx, posy = 307, 160
+    posx, posy = 350, 110
     roi = eject_picture[posy:posy + rs, posx:posx + cs, :]
 
     roi[:, :, :] = imposter
 
     text = text.format(name)
-
-    cv2.putText(eject_picture, text, (50, 600), cv2.QT_FONT_NORMAL, 2, (255, 255, 255), 3)
+    text_color = (0, 0, 255) if is_imposter else (255, 255, 255)
+    cv2.putText(eject_picture, text, (50, 600), cv2.QT_FONT_NORMAL, 1.7, text_color, 3)
     dest_x, dest_y = eject_picture.shape[0:2]
 
     dest_x = int(dest_x // 1.5)
