@@ -1446,6 +1446,7 @@ async def _user_feedback(ctx, *args, text, **kwargs):
 
     channel = bot.get_channel(feedback_channel)
     await channel.send(text)
+    await send_approve(ctx)
 
 
 async def send_long_message(ctx, text):
