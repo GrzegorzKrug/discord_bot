@@ -1,5 +1,6 @@
 import discord
 import asyncio
+import random
 import time
 import re
 
@@ -173,7 +174,7 @@ def _get_advanced_kwargs(bot, ctx, *args, bold_name=False, **kwargs):
     return good_args, kwargs
 
 
-def find_one_member_name_and_picture(bot, bold_name=False):
+def find_one_member_name_and_picture(bot, get_random_if_none=True):
     """
     Decorator that find.
     Args:
@@ -188,26 +189,27 @@ def find_one_member_name_and_picture(bot, bold_name=False):
         logger.warning(f"Advanced args are not supporting non kwargs functions")
 
         async def f(ctx, *args, **kwargs):
+            user = None
             if ctx.message.mentions:
-                avatar_url = ctx.message.mentions[0].avatar_url
-                name = ctx.message.mentions[0].name
+                user = ctx.message.mentions[0]
 
             elif args:
                 name = args[0]
                 member = discord.utils.find(lambda m: name.lower() in m.name.lower(), ctx.guild.members)
                 logger.debug(f"Found member: {member}")
                 if member:
-                    avatar_url = member.avatar_url
-                    name = member.name
+                    user = member
+            if user is None:
+                if get_random_if_none:
+                    if ctx.guild:
+                        print()
+                        user = random.choice(ctx.guild.members)
+                    else:
+                        user = ctx.author
                 else:
-                    avatar_url = ctx.author.avatar_url
-                    name = ctx.author.name
+                    user = ctx.author
 
-            else:
-                avatar_url = ctx.author.avatar_url
-                name = ctx.author.name
-
-            output = await coro(ctx, name, avatar_url, *args, **kwargs)
+            output = await coro(ctx, user, *args, **kwargs)
             return output
 
         f.__name__ = coro.__name__

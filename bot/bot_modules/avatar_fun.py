@@ -3,6 +3,8 @@ from .decorators import *
 from .loggers import *
 from .images import *
 
+from PIL import ImageDraw, ImageFont
+
 import asyncio
 import imutils
 import numpy as np
@@ -14,31 +16,52 @@ import cv2
 @find_one_member_name_and_picture(bot)
 @log_call_function
 @my_help.help_decorator("Create wanted poster", example="(name) or (mention)", menu="fun")
-async def wanted(ctx, name, avatar_url, *args, **kwargs):
+async def wanted(ctx, user, *args, **kwargs):
+    name = user.name
+    avatar_url = user.avatar_url
     image = get_picture(avatar_url)
     image = cv2.resize(image, (256, 256))
     await asyncio.sleep(0.1)
 
-    imposter = _create_wanted_image(image, name)
+    reward = 80
+    imposter = _create_wanted_image(image, name, reward)
     await asyncio.sleep(0.1)
 
     file = image_to_discord_file(imposter, "wanted")
     await ctx.send(file=file)
 
 
-def _create_wanted_image(image, name):
-    img_path = os.path.join(os.path.dirname(__file__), "src_images", "wanted3.png")
+def _create_wanted_image(image, name, reward: int):
+    img_path = os.path.join(os.path.dirname(__file__), "src_images", "wanted.jpg")
     wanted = cv2.imread(img_path)
+    wanted = imutils.resize(wanted, width=310)
 
+    crop_x = 1
+    crop_y = 30
+    cx, cy = 29, 90
+    image = image[crop_y:-crop_y, crop_x:-crop_x, :]
     image = convert_to_sephia(image, 7, 60)
     rows, cols, channels = image.shape
-    cx, cy = 185, 350
+
     slic = (slice(cy, cy + rows), slice(cx, cx + cols), slice(None))
     roi = wanted[slic]
     roi[:, :] = image
-    gray = cv2.cvtColor(wanted, cv2.COLOR_BGR2GRAY)
-    mask = gray >= 255
-    # wanted[mask] = 0
+    font_path = os.path.join(os.path.dirname(__file__), "src_fonts/BouWeste.ttf")
+
+    wanted = image_array_to_pillow(wanted)
+    draw = ImageDraw.Draw(wanted)
+
+    font = get_font_to_bounding_box(font_path, name, max_width=257, max_height=None, initial_font_size=48)
+    draw.text((155, 335), name, font=font, fill=(55, 40, 30), anchor="mm")
+
+    reward = "$ " + f"{reward:,}"
+    font = get_font_to_bounding_box(font_path, reward, max_width=250, max_height=None, initial_font_size=48)
+    draw.text((280, 377), reward, font=font, fill=(30, 90, 20), anchor="rm")
+
+    font = ImageFont.truetype(font_path, size=16)
+    draw.text((35, 400), "For being in wrong place\n at wrong time.", font=font, fill=(50, 50, 50))
+
+    wanted = image_pillow_to_array(wanted)
     return wanted
 
 
@@ -48,8 +71,11 @@ def _create_wanted_image(image, name):
 @log_call_function
 @my_help.help_decorator("Check if somebody was and imposter", example="(name) or (mention)", menu="fun",
                         aliases=['imposter'])
-async def check_imposter(ctx, name, avatar_url, *args, **kwargs):
+async def check_imposter(ctx, user, *args, **kwargs):
     """"""
+    name = user.name
+    avatar_url = user.avatar_url
+
     image = get_picture(avatar_url)
     await asyncio.sleep(0.1)
     imposter = _create_imposter_image(image, name)
