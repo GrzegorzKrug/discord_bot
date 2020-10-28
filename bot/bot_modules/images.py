@@ -70,13 +70,13 @@ def image_to_discord_file(image, filename):
         return fp
 
 
-def convert_to_sephia(image, depth=7, intense=60):
+def convert_to_sephia(image, depth=8, intense=40):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     image = np.array(image, dtype=int)
 
-    image[:, :, 0] = np.mean([gray, image[:, :, 0] / 2 - intense], axis=0)
-    image[:, :, 1] = np.mean([gray, image[:, :, 1] / 2 + intense], axis=0)
-    image[:, :, 2] = np.mean([gray, image[:, :, 2] + (depth ** 2) + intense], axis=0)
+    image[:, :, 0] = np.mean([gray, image[:, :, 0] / 3 - intense], axis=0)
+    image[:, :, 1] = np.mean([gray, image[:, :, 1] / 3 + intense], axis=0)
+    image[:, :, 2] = np.mean([gray, image[:, :, 2] / 3 + (depth ** 2) + intense], axis=0)
 
     mask = image > 255
     image[mask] = 255

@@ -6,6 +6,7 @@ from .images import *
 from PIL import ImageDraw, ImageFont
 
 import asyncio
+import datetime
 import imutils
 import numpy as np
 import cv2
@@ -23,11 +24,16 @@ async def wanted(ctx, user, *args, **kwargs):
     image = cv2.resize(image, (256, 256))
     await asyncio.sleep(0.1)
 
-    reward = 80
-    imposter = _create_wanted_image(image, name, reward)
+    join_date = user.joined_at
+    dt = datetime.datetime.now()
+    duration = dt - join_date
+    duration = int(duration.total_seconds()) // 60
+    reward = duration
+
+    wanted = _create_wanted_image(image, name, reward)
     await asyncio.sleep(0.1)
 
-    file = image_to_discord_file(imposter, "wanted")
+    file = image_to_discord_file(wanted, "wanted")
     await ctx.send(file=file)
 
 
@@ -40,7 +46,7 @@ def _create_wanted_image(image, name, reward: int):
     crop_y = 30
     cx, cy = 29, 90
     image = image[crop_y:-crop_y, crop_x:-crop_x, :]
-    image = convert_to_sephia(image, 7, 60)
+    image = convert_to_sephia(image, 8, 40)
     rows, cols, channels = image.shape
 
     slic = (slice(cy, cy + rows), slice(cx, cx + cols), slice(None))
@@ -78,8 +84,10 @@ async def check_imposter(ctx, user, *args, **kwargs):
 
     image = get_picture(avatar_url)
     await asyncio.sleep(0.1)
+
     imposter = _create_imposter_image(image, name)
     await asyncio.sleep(0.1)
+
     file = image_to_discord_file(imposter, "imposter")
     await ctx.send(file=file)
 

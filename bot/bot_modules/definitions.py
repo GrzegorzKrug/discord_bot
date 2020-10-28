@@ -1,10 +1,11 @@
+import discord
+import os
+
 from discord.ext.commands import Bot
 from discord import Colour
 
 from .loggers import define_logger
 from .emojis import *
-
-import os
 
 production = bool(os.getenv('PRODUCTION', None))
 
@@ -16,7 +17,10 @@ else:
 messenger = define_logger("Messenger", path='..', file_lvl="INFO", combined=False, date_in_file=True)
 feedback = define_logger("Feedback", path='..', file_lvl="INFO", combined=False, date_in_file=False)
 
-bot = Bot(command_prefix='!', case_insensitive=True, help_command=None)
+intents = discord.Intents.default()
+intents.members = True  # Subscribe to the privileged members intent.
+
+bot = Bot(command_prefix='!', case_insensitive=True, help_command=None, intents=intents)
 
 
 class Help:

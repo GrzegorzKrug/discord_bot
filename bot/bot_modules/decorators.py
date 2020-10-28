@@ -202,7 +202,6 @@ def find_one_member_name_and_picture(bot, get_random_if_none=True):
             if user is None:
                 if get_random_if_none:
                     if ctx.guild:
-                        print()
                         user = random.choice(ctx.guild.members)
                     else:
                         user = ctx.author
