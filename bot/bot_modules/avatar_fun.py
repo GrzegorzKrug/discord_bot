@@ -49,7 +49,7 @@ def _create_wanted_image(avatar, name, reward: int):
     green_dark = (30, 90, 20)
 
     crop_x = 1
-    crop_y = 33
+    crop_y = 31
     cx, cy = 29, 90
     avatar = avatar[crop_y:-crop_y, crop_x:-crop_x, :]
     avatar = blend_to_single_color(avatar, (185, 204, 217))
