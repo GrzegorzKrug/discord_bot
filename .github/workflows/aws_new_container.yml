@@ -25,6 +25,6 @@ jobs:
             cd ~/app/discord_bot;
             docker-compose down;
             git pull;
-            docker rmi -f $(docker images -f "reference=yasiu_bot" -q)
-            docker-compose up -d;
+            docker rmi -f $(docker images -f "reference=yasiu_bot" -q);
+            docker-compose up -dy;
             exit;
