@@ -15,7 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "Connect and recreate"
-        if: $newcontainer
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
