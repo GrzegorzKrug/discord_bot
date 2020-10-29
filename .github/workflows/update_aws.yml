@@ -25,7 +25,6 @@ jobs:
 #            exit;
 
   recreate_container:
-    needs: update_ec2
     runs-on: ubuntu-latest
     steps:
       - name: "Connect to Instance"
