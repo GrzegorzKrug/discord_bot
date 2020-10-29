@@ -2,13 +2,13 @@ on:
   push:
     branches:
     - master
-    env:
-      newcontainer: false
+      env:
+        newcontainer: false
   pull_request:
     branches:
     - master
-    env:
-      newcontainer: false
+      env:
+        newcontainer: false
 
 jobs:
   update_bot_files_on_ec2:
