@@ -2,12 +2,12 @@ on:
   push:
     branches:
     - master
-    inputs:
+    env:
       newcontainer: false
   pull_request:
     branches:
     - master
-    inputs:
+    env:
       newcontainer: false
 
 
