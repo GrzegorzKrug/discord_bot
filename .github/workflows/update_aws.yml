@@ -1,4 +1,4 @@
-on
+on:
   push:
     branches:
     - master
@@ -11,7 +11,7 @@ on
       newcontainer: false
 
 jobs:
-  update_ec2:
+  update_bot_files_on_ec2:
     runs-on: ubuntu-latest
     steps:
       - name: "Connect and update files"
