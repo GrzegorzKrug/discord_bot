@@ -1,15 +1,9 @@
 on:
-  push:
+  [push, pull_request]:
     branches:
     - master
     env:
       newcontainer: false
-  pull_request:
-    branches:
-    - master
-    env:
-      newcontainer: false
-
 
 jobs:
 #  update_ec2:
@@ -44,5 +38,5 @@ jobs:
             docker-compose down;
             git pull;
             docker rmi -f $(docker images -f "reference=yasiu_bot" -q)
-            docker-compose up -yd;
+            docker-compose up -d;
             exit;
