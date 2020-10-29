@@ -7,12 +7,14 @@ from discord import Colour
 from .loggers import define_logger
 from .emojis import *
 
-production = bool(os.getenv('PRODUCTION', None))
+PRODUCTION = bool(os.getenv('PRODUCTION', None))
 
-if production:
+if PRODUCTION:
     logger = define_logger("Bot", path='..', file_lvl="INFO", stream_lvl="DEBUG")
+    DEBUG_IMAGES = False
 else:
     logger = define_logger("Bot", path='..', file_lvl="INFO", stream_lvl="DEBUG", extra_debug="Debug.log")
+    DEBUG_IMAGES = True
 
 messenger = define_logger("Messenger", path='..', file_lvl="INFO", combined=False, date_in_file=True)
 feedback = define_logger("Feedback", path='..', file_lvl="INFO", combined=False, date_in_file=False)

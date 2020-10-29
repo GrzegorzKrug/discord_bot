@@ -85,3 +85,14 @@ def convert_to_sephia(image, depth=8, intense=40):
 
     image = np.array(image, dtype=np.uint8)
     return image
+
+
+def blend_to_single_color(image, color: "BGR"):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    gray = gray / 255
+    gray = gray[:, :, np.newaxis]
+    print(gray.shape)
+    image = gray * color
+    print(image.shape)
+    image = np.array(image, dtype=np.uint8)
+    return image
