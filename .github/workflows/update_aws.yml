@@ -1,32 +1,33 @@
-on:
-  [push, pull_request]:
-    branches:
-    - master
-    env:
-      newcontainer: false
+on: [push, pull_request]
+  branches:
+  - master
+  env:
+    newcontainer: false
 
 jobs:
-#  update_ec2:
-#    runs-on: ubuntu-latest
-#    steps:
-#      - name: "Connect to Instance"
-#        uses: appleboy/ssh-action@master
-#        with:
-#          host: ${{ secrets.EC2_HOST }}
-#          username: "ubuntu"
-#          key: ${{ secrets.EC2_KEY }}
-#          script:
-#            whoami;
-#            cd ~/app/discord_bot;
-#            docker-compose down;
-#            git pull;
-#            docker-compose up -d;
-#            exit;
+  update_ec2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Connect and update files"
+        if: $!{{newcontainer}}
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: "ubuntu"
+          key: ${{ secrets.EC2_KEY }}
+          script:
+            whoami;
+            cd ~/app/discord_bot;
+            docker-compose down;
+            git pull;
+            docker-compose up -d;
+            exit;
 
   recreate_container:
     runs-on: ubuntu-latest
     steps:
-      - name: "Connect to Instance"
+      - name: "Connect and recreate"
+        if: ${{newcontainer}}
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
