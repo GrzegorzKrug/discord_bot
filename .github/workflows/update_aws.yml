@@ -2,20 +2,20 @@ on:
   push:
     branches:
     - master
-      env:
-        newcontainer: false
+    env:
+      newcontainer: false
   pull_request:
     branches:
     - master
-      env:
-        newcontainer: false
+    env:
+      newcontainer: false
 
 jobs:
   update_bot_files_on_ec2:
     runs-on: ubuntu-latest
     steps:
       - name: "Connect and update files"
-        if: $!{{newcontainer}}
+        if: $!{{ newcontainer }}
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "Connect and recreate"
-        if: ${{newcontainer}}
+        if: ${{ newcontainer }}
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
