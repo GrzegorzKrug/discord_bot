@@ -172,25 +172,25 @@ def create_wanted_image(avatar, name, reward: int):
 def create_hulk_taco(avatar):
     img_path = os.path.join(os.path.dirname(__file__), "src_images", "hulk_taco.jpg")
     background = cv2.imread(img_path)
-    background = imutils.resize(background, width=1000)
-
+    background = imutils.resize(background, width=1100)
     h, w, c = background.shape
-    green_dark = (99, 139, 127)
+    green_dark = (111, 159, 127)
 
     avatar = blend_to_single_color(avatar, green_dark)
-    x_st = 254
+    x_st = 290
     x_end = x_st + 256
-    y_st = 35
+    y_st = 55
     y_end = y_st + 256
 
     roi = background[y_st:y_end, x_st:x_end]
 
-    mask = create_circular_mask((256, 256), (120, 120), 65, feather=45)
+    mask = create_circular_mask((256, 256), (120, 120), 90, feather=30)
     mask = mask.reshape(256, 256, 1)
 
     mask = mask / 255
     roi[:, :] = roi * mask + avatar * (1 - mask)
 
+    background = imutils.resize(background, width=1000)
     return background
 
 

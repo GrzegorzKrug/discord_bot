@@ -3,11 +3,29 @@ from .decorators import *
 from .loggers import *
 from .images import *
 
-
-
 import asyncio
 import datetime
 import cv2
+
+
+@bot.command(aliases=['hulk'])
+@advanced_args_function(bot)
+@find_one_member_name_and_picture(bot)
+@log_call_function
+@my_help.help_decorator("Create hulk with taco", example="(name) or (mention)", menu="fun", aliases=['hulk'])
+async def taco(ctx, user, *args, **kwargs):
+    name = user.name
+    avatar_url = user.avatar_url
+
+    avatar = get_picture(avatar_url)
+    avatar = cv2.resize(avatar, (256, 256))
+    await asyncio.sleep(0.1)
+
+    image = create_hulk_taco(avatar)
+    await asyncio.sleep(0.1)
+
+    file = image_to_discord_file(image, "hulk")
+    await ctx.send(file=file)
 
 
 @bot.command()
@@ -18,8 +36,8 @@ import cv2
 async def wanted(ctx, user, *args, **kwargs):
     name = user.name
     avatar_url = user.avatar_url
-    image = get_picture(avatar_url)
-    image = cv2.resize(image, (256, 256))
+    avatar = get_picture(avatar_url)
+    avatar = cv2.resize(avatar, (256, 256))
     await asyncio.sleep(0.1)
 
     join_date = user.joined_at
@@ -28,17 +46,11 @@ async def wanted(ctx, user, *args, **kwargs):
     duration = int(duration.total_seconds()) // 60
     reward = duration
 
-    wanted = create_wanted_image(image, name, reward)
+    image = create_wanted_image(avatar, name, reward)
     await asyncio.sleep(0.1)
 
-    if DEBUG_IMAGES:
-        cv2.imwrite("debug_wanted.png", wanted)
-    else:
-        file = image_to_discord_file(wanted, "wanted")
-        await ctx.send(file=file)
-
-
-
+    file = image_to_discord_file(image, "wanted")
+    await ctx.send(file=file)
 
 
 @bot.command(aliases=['imposter'])
@@ -52,14 +64,12 @@ async def check_imposter(ctx, user, *args, **kwargs):
     name = user.name
     avatar_url = user.avatar_url
 
-    image = get_picture(avatar_url)
+    avatar = get_picture(avatar_url)
+    avatar = cv2.resize(avatar, (256, 256))
     await asyncio.sleep(0.1)
 
-    imposter = create_imposter_image(image, name)
+    image = create_imposter_image(avatar, name)
     await asyncio.sleep(0.1)
 
-    file = image_to_discord_file(imposter, "imposter")
+    file = image_to_discord_file(image, "imposter")
     await ctx.send(file=file)
-
-
-
