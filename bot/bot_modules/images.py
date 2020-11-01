@@ -184,17 +184,28 @@ def create_hulk_taco(avatar):
 
     roi = background[y_st:y_end, x_st:x_end]
 
-    mask = create_circular_mask((256, 256), (120, 120), 90, feather=30)  # avatar size (256,256,3)
-    mask = mask.reshape(256, 256, 1)
+    alpha = create_circular_alpha_mask((256, 256), (120, 120), 90, feather=30)  # avatar size (256,256,3)
+    alpha = alpha.reshape(256, 256, 1)
 
-    mask = mask / 255
-    roi[:, :] = roi * mask + avatar * (1 - mask)
+    alpha = alpha / 255
+    roi[:, :] = roi * alpha + avatar * (1 - alpha)
 
     background = imutils.resize(background, width=1000)
     return background
 
 
-def create_circular_mask(shape, center, min_radius, feather=0):
+def create_circular_alpha_mask(shape, center, min_radius, feather=0):
+    """
+    Creates alpha masks that hides point of interest of given radius and feather
+    Args:
+        shape:
+        center:
+        min_radius:
+        feather:
+
+    Returns:
+
+    """
     h, w = shape
     if center is None:
         center = (int(w / 2), int(h / 2))
