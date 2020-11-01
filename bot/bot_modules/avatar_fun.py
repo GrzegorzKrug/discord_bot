@@ -10,7 +10,7 @@ import cv2
 
 @bot.command(aliases=['hulk'])
 @advanced_args_function(bot)
-@find_one_member_name_and_picture(bot)
+@get_author_name_and_picture_ifnotmentioned(bot)
 @log_call_function
 @my_help.help_decorator("Create hulk with taco", example="(name) or (mention)", menu="fun", aliases=['hulk'])
 async def taco(ctx, user, *args, **kwargs):

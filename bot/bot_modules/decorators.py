@@ -218,6 +218,44 @@ def find_one_member_name_and_picture(bot, get_random_if_none=True):
     return wrapper
 
 
+def get_author_name_and_picture_ifnotmentioned(bot, get_random_if_none=True):
+    """
+    Decorator that find.
+    Args:
+        bot: bot instance
+        bold_name:
+
+    Returns:
+        message object returned by calling given function with given params
+    """
+
+    def wrapper(coro):
+        logger.warning(f"Advanced args are not supporting non kwargs functions")
+
+        async def f(ctx, *args, **kwargs):
+            user = None
+            if ctx.message.mentions:
+                user = ctx.message.mentions[0]
+
+            elif args:
+                name = args[0]
+                member = discord.utils.find(lambda m: name.lower() in m.name.lower(), ctx.guild.members)
+                logger.debug(f"Found member: {member}")
+                if member:
+                    user = member
+            if user is None:
+                user = ctx.author
+
+            output = await coro(ctx, user, *args, **kwargs)
+            return output
+
+        f.__name__ = coro.__name__
+        f.__doc__ = coro.__doc__
+        return f
+
+    return wrapper
+
+
 def advanced_args_function(bot, bold_name=False):
     """
     Decorator that translates args to create flags and converts string into kwargs.

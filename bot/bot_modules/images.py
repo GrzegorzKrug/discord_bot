@@ -184,7 +184,7 @@ def create_hulk_taco(avatar):
 
     roi = background[y_st:y_end, x_st:x_end]
 
-    mask = create_circular_mask((256, 256), (120, 120), 90, feather=30)
+    mask = create_circular_mask((256, 256), (120, 120), 90, feather=30)  # avatar size (256,256,3)
     mask = mask.reshape(256, 256, 1)
 
     mask = mask / 255
