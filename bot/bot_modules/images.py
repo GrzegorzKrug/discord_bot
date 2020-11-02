@@ -147,9 +147,10 @@ def create_wanted_image(avatar, name, reward: int):
     green_dark = (30, 90, 20)
 
     crop_x = 1
-    crop_y = 31
+    crop_top = 0
+    crop_bottom = 62
     cx, cy = 29, 90
-    avatar = avatar[crop_y:-crop_y, crop_x:-crop_x, :]
+    avatar = avatar[crop_top:-crop_bottom, crop_x:-crop_x, :]
     avatar = blend_to_single_color(avatar, (185, 204, 217))
     rows, cols, channels = avatar.shape
 
@@ -158,7 +159,7 @@ def create_wanted_image(avatar, name, reward: int):
     roi[:, :] = avatar
     pt1 = (29, 90)
     pt2 = (pt1[0] + 256 - 2 * crop_x,
-           pt1[1] + 256 - 2 * crop_y)
+           pt1[1] + 256 - (crop_top + crop_bottom))
     cv2.rectangle(wanted, pt1, pt2, (41, 45, 60), 2)
 
     font_path = os.path.join(os.path.dirname(__file__), "src_fonts/BouWeste.ttf")
