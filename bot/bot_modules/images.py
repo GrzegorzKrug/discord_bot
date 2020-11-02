@@ -17,9 +17,20 @@ def get_picture(url):
         logger.error(f"Request has incorrect code: {res.status_code}")
         return None
 
-    image = np.frombuffer(res.content, dtype=np.uint8)
-    image = cv2.imdecode(image, cv2.IMREAD_COLOR)
-    return image
+    try:
+        "Get frame from image"
+        image = np.frombuffer(res.content, dtype=np.uint8)
+        image = cv2.imdecode(image, cv2.IMREAD_COLOR)
+        frame = cv2.resize(image, (256, 256))
+
+    except Exception:
+        "Get frame from gifs"
+        bytes_like = BytesIO(res.content)
+        imageObject = Image.open(bytes_like)
+        imageObject.seek(0)
+        frame = image_pillow_to_array(imageObject)
+
+    return frame
 
 
 def get_font_to_bounding_box(font_path, text, max_width, max_height, initial_font_size=50, minimal_font_size=3):

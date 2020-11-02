@@ -18,7 +18,6 @@ async def taco(ctx, user, *args, **kwargs):
     avatar_url = user.avatar_url
 
     avatar = get_picture(avatar_url)
-    avatar = cv2.resize(avatar, (256, 256))
     await asyncio.sleep(0.1)
 
     image = create_hulk_taco(avatar)
@@ -37,7 +36,6 @@ async def wanted(ctx, user, *args, **kwargs):
     name = user.name
     avatar_url = user.avatar_url
     avatar = get_picture(avatar_url)
-    avatar = cv2.resize(avatar, (256, 256))
     await asyncio.sleep(0.1)
 
     join_date = user.joined_at
@@ -65,7 +63,6 @@ async def imposter(ctx, user, *args, **kwargs):
     avatar_url = user.avatar_url
 
     avatar = get_picture(avatar_url)
-    avatar = cv2.resize(avatar, (256, 256))
     await asyncio.sleep(0.1)
 
     image = create_imposter_image(avatar, name)
