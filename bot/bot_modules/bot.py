@@ -374,7 +374,27 @@ async def on_message(message):
 async def on_ready():
     act = Activity(type=ActivityType.watching, name=" if you need !help")
     await bot.change_presence(status=Status.idle)
-    await _announcement([SYSTEM_CHANNEL], "✅ Hey, i'm now online.")
+    last_msg = await get_last_message(SYSTEM_CHANNEL, bot.user.id, 10)
+    if last_msg:
+        posted = last_msg.created_at
+        now = datetime.datetime.now()
+        duration = now - posted
+        if duration.days:
+            post_text = f" I was offline for {duration.days} days and "
+        else:
+            post_text = f" I was offline for "
+
+        offline_time = duration.seconds - 3600
+        hours = offline_time // 3600
+        minutes = offline_time // 60
+        seconds = offline_time % 60
+        time_text = f"{hours:>02}:{minutes:>02}:{seconds:>02}"
+        post_text += time_text
+
+    else:
+        post_text = "I was offline forever..."
+
+    await _announcement([SYSTEM_CHANNEL], "✅ Hey, i'm now online." + post_text)
     await bot.change_presence(activity=act, status=Status.online)
     logger.warning(f"On ready announcement is constant")
     logger.info(f"Going online as {bot.user.name}")
@@ -384,6 +404,17 @@ async def on_ready():
 
 def start_periodic_tasks():
     _check_config_periodically.start()
+
+
+async def get_last_message(channel_id, user_id, limit=10):
+    channel = bot.get_channel(channel_id)
+    messages = await channel.history(limit=limit).flatten()
+    message = None
+    for msg in messages:
+        if msg.author.id == user_id:
+            message = msg
+            break
+    return message
 
 
 @bot.event
