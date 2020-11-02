@@ -29,6 +29,7 @@ def get_picture(url):
         imageObject = Image.open(bytes_like)
         imageObject.seek(0)
         frame = image_pillow_to_array(imageObject)
+        frame = cv2.resize(frame, (256, 256))
 
     return frame
 
