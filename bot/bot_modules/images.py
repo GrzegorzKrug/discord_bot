@@ -197,7 +197,6 @@ def create_hulk_taco(avatar):
     roi = background[y_st:y_end, x_st:x_end]
 
     alpha = create_square_alpha_mask((256, 256), (128, 128), 170, feather_dist=20)  # avatar size (256,256,3)
-    alpha = create_circular_alpha_mask((256, 256), (120, 120), 90, feather_dist=30)  # avatar size (256,256,3)
     alpha = alpha.reshape(256, 256, 1)
 
     alpha = alpha / 255
