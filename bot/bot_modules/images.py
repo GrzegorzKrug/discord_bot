@@ -221,7 +221,7 @@ def get_avenger_pic(avatar):
 
     alpha = create_square_alpha_mask((avatar.shape[0], avatar.shape[0]),
                                      (90, 90),
-                                     100, feather_dist=40)
+                                     90, feather_dist=40)
     alpha = alpha.reshape(avatar.shape[0], avatar.shape[0], 1)
 
     alpha = alpha / 255
