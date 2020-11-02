@@ -19,8 +19,7 @@ else:
 messenger = define_logger("Messenger", path='..', file_lvl="INFO", combined=False, date_in_file=True)
 feedback = define_logger("Feedback", path='..', file_lvl="INFO", combined=False, date_in_file=False)
 
-intents = discord.Intents.default()
-intents.members = True  # Subscribe to the privileged members intent.
+intents = discord.Intents.all()
 
 bot = Bot(command_prefix='!', case_insensitive=True, help_command=None, intents=intents)
 
