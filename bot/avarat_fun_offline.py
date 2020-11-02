@@ -1,16 +1,16 @@
 import cv2
 
-from bot_modules.images import get_picture
+from bot_modules.images import create_wanted_image, create_hulk_taco
 
 """"""
 name = "Youshisu"
-image = cv2.imread("./bot_modules/src_images/Youshisu.png")
+youshisu_avatar = cv2.imread("./bot_modules/src_images/Youshisu.png")
 
-name = "Youshisu"
 avatar_url = r"https://cdn.discordapp.com/avatars/513749299763609630/a_8acab6cd1a769f5b21a42959f4e3f51f.gif?size=128"
 
-avatar = get_picture(avatar_url)
-cv2.imwrite("avatar_fun_debug.png", avatar)
+output = create_wanted_image(youshisu_avatar, name, 100)
+
+cv2.imwrite("avatar_fun_debug.png", output)
 
 # cv2.imshow("Yous", new_fun)
 # cv2.waitKey(delay=5_000)

@@ -196,24 +196,25 @@ def create_hulk_taco(avatar):
 
     roi = background[y_st:y_end, x_st:x_end]
 
-    alpha = create_circular_alpha_mask((256, 256), (120, 120), 90, feather=30)  # avatar size (256,256,3)
+    alpha = create_square_alpha_mask((256, 256), (128, 128), 170, feather_dist=20)  # avatar size (256,256,3)
+    alpha = create_circular_alpha_mask((256, 256), (120, 120), 90, feather_dist=30)  # avatar size (256,256,3)
     alpha = alpha.reshape(256, 256, 1)
 
     alpha = alpha / 255
-    roi[:, :] = roi * alpha + avatar * (1 - alpha)
+    roi[:, :] = roi * (1 - alpha) + avatar * alpha
 
     background = imutils.resize(background, width=1000)
     return background
 
 
-def create_circular_alpha_mask(shape, center, min_radius, feather=0):
+def create_circular_alpha_mask(shape, center, min_radius, feather_dist=0):
     """
     Creates alpha masks that hides point of interest of given radius and feather
     Args:
         shape:
         center:
         min_radius:
-        feather:
+        feather_dist:
 
     Returns:
 
@@ -225,11 +226,62 @@ def create_circular_alpha_mask(shape, center, min_radius, feather=0):
     dist_from_center = np.sqrt((X - center[0]) ** 2 + (Y - center[1]) ** 2)
 
     mask = dist_from_center <= min_radius
-    mask_feather = dist_from_center <= (min_radius + feather)
+    mask_feather = dist_from_center <= (min_radius + feather_dist)
     rest = ~(mask | mask_feather)
 
-    dist_from_center = (dist_from_center - min_radius) / (feather) * 255
-    dist_from_center[mask] = 0
-    dist_from_center[rest] = 255
+    dist_from_center = 255 - (dist_from_center - min_radius) / feather_dist * 255
+    dist_from_center[mask] = 255
+    dist_from_center[rest] = 0
 
     return dist_from_center
+
+
+def create_square_alpha_mask(shape, center, box_side, feather_dist=0):
+    """
+    Creates alpha masks that hides point of interest of given radius and feather
+    Args:
+        shape:
+        center:
+        box_side:
+        feather_dist:
+
+    Returns:
+
+    """
+    h, w = shape
+    if center is None:
+        center_x, center_y = (int(w / 2), int(h / 2))
+    else:
+        center_x, center_y = center
+
+    Y, X = np.ogrid[:h, :w]
+    out = np.zeros((h, w), dtype=np.uint8)
+    dist = box_side / 2
+
+    ms_y = abs(Y - center_y) <= dist
+    ms_x = abs(X - center_x) <= dist
+    mask = ms_x & ms_y
+    if feather_dist > 0:
+        feath_y = abs(Y - center_y) - dist
+        feath_x = abs(X - center_x) - dist
+        feather_mask = (feath_y <= feather_dist) & (feath_x <= feather_dist)
+
+        feath_dist = np.maximum(feath_x, feath_y) / (feather_dist) * 255
+        feath_dist = 255 - feath_dist
+
+        "Fix feather numbers before conversion"
+        under = feath_dist < 0
+        over = feath_dist > 255
+        feath_dist[under] = 0
+        feath_dist[over] = 255
+
+        # fff = feath_dist.reshape(256, 256, 1)
+        # fff = np.array(fff, dtype=np.uint8)
+        # cv2.imwrite("mask.jpg", fff)
+        out = feath_dist
+
+        rest = ~(feather_mask | mask)
+        out[rest] = 0
+    out[mask] = 255
+    out = np.array(out, dtype=np.uint8)
+    return out
