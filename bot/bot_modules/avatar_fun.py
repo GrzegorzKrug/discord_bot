@@ -27,6 +27,25 @@ async def taco(ctx, user, *args, **kwargs):
     await ctx.send(file=file)
 
 
+@bot.command(aliases=['avenger'])
+@advanced_args_function(bot)
+@get_author_name_and_picture_ifnotmentioned(bot)
+@log_call_function
+@my_help.help_decorator("Become one of avengers", example="(name) or (mention)", menu="fun", aliases=['avenger'])
+async def become_avenger(ctx, user, *args, **kwargs):
+    name = user.name
+    avatar_url = user.avatar_url
+
+    avatar = get_picture(avatar_url)
+    await asyncio.sleep(0.1)
+
+    image = get_avenger_pic(avatar)
+    await asyncio.sleep(0.1)
+
+    file = image_to_discord_file(image, "avenger")
+    await ctx.send(file=file)
+
+
 @bot.command()
 @advanced_args_function(bot)
 @find_one_member_name_and_picture(bot)

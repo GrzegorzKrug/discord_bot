@@ -206,6 +206,31 @@ def create_hulk_taco(avatar):
     return background
 
 
+def get_avenger_pic(avatar):
+    img_path = os.path.join(os.path.dirname(__file__), "src_images", "troll_avenger.jpg")
+    background = cv2.imread(img_path)
+    background = imutils.resize(background, width=1100)
+
+    avatar = imutils.resize(avatar, width=180)
+    x_st = 580
+    x_end = x_st + avatar.shape[0]
+    y_st = 60
+    y_end = y_st + avatar.shape[0]
+
+    roi = background[y_st:y_end, x_st:x_end]
+
+    alpha = create_square_alpha_mask((avatar.shape[0], avatar.shape[0]),
+                                     (90, 90),
+                                     100, feather_dist=40)
+    alpha = alpha.reshape(avatar.shape[0], avatar.shape[0], 1)
+
+    alpha = alpha / 255
+    roi[:, :] = roi * (1 - alpha) + avatar * alpha
+
+    background = imutils.resize(background, width=700)
+    return background
+
+
 def create_circular_alpha_mask(shape, center, min_radius, feather_dist=0):
     """
     Creates alpha masks that hides point of interest of given radius and feather
