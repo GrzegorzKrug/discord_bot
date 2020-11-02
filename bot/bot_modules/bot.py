@@ -384,7 +384,7 @@ async def on_ready():
         else:
             post_text = f" I was offline for "
 
-        offline_time = duration.seconds + 3600
+        offline_time = duration.seconds
         hours = offline_time // 3600
         minutes = offline_time // 60
         seconds = offline_time % 60
