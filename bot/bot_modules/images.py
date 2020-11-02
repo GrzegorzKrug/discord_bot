@@ -21,15 +21,15 @@ def get_picture(url):
         "Get frame from image"
         image = np.frombuffer(res.content, dtype=np.uint8)
         image = cv2.imdecode(image, cv2.IMREAD_COLOR)
-
+        frame = cv2.resize(image, (256, 256))
     except Exception:
         "Get frame from gifs"
         bytes_like = BytesIO(res.content)
         imageObject = Image.open(bytes_like)
         imageObject.seek(0)
         image = image_pillow_to_array(imageObject)
+        frame = cv2.resize(image, (256, 256))
 
-    frame = cv2.resize(image, (256, 256))
     return frame
 
 
